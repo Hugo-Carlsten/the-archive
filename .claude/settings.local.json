@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST http://localhost:3000/api/analyze-garment -H \"Content-Type: application/json\" -d '{\"\"base64\"\":\"\"dGVzdA==\"\",\"\"mimeType\"\":\"\"image/jpeg\"\"}')",
+      "Bash(curl:*)",
+      "Bash(npm run:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote:*)"
+    ]
+  }
+}
