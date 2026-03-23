@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db, storage } from "@/lib/firebase";
 import type { GarmentAnalysis } from "@/app/api/analyze-garment/route";
 
@@ -534,7 +534,7 @@ export default function OnboardingPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      let currentUser = user;
+      const currentUser = user;
 
       if (!currentUser) {
         console.log("[handleFinish] No user — redirecting to /login");
