@@ -390,6 +390,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -529,15 +530,19 @@ export default function OnboardingPage() {
   // ── Save to Firestore ──────────────────────────────────────────────────────
 
   async function handleFinish() {
+    console.log("[handleFinish] Triggered. User:", user?.uid ?? "not logged in");
     setSaving(true);
+    setSaveError(null);
     try {
       let currentUser = user;
 
       if (!currentUser) {
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-        currentUser = result.user;
+        console.log("[handleFinish] No user — redirecting to /login");
+        router.push("/login?return=/onboarding");
+        setSaving(false);
+        return;
       }
+      console.log("[handleFinish] Saving for uid:", currentUser.uid);
 
       // Upload images and save wardrobe items with analysis
       const wardrobeItems: Array<{ imageUrl: string; analysis: GarmentAnalysis | null }> = [];
@@ -592,7 +597,9 @@ export default function OnboardingPage() {
 
       router.push("/feed");
     } catch (err) {
-      console.error(err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[handleFinish] Error:", msg);
+      setSaveError(msg);
       setSaving(false);
     }
   }
@@ -1024,6 +1031,12 @@ export default function OnboardingPage() {
             </button>
           ) : (
             <span />
+          )}
+
+          {saveError && (
+            <p className="text-xs text-red-500 text-center max-w-xs">
+              Något gick fel: {saveError}
+            </p>
           )}
 
           {step < TOTAL_STEPS ? (
