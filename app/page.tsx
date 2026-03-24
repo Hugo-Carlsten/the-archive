@@ -11,7 +11,10 @@ export default function Home() {
           Est. 2025
         </p>
 
-        <img src="/logo.jpg" alt="The Archive" style={{ height: "80px", width: "auto" }} className="mb-6" />
+        <h1 className="font-serif text-6xl sm:text-8xl md:text-9xl tracking-tight text-charcoal mb-4 leading-none">
+          The Archive
+        </h1>
+        <img src="/logo.jpg" alt="" style={{ height: "100px", width: "auto" }} className="mb-6" />
 
         <div className="w-24 h-px bg-taupe/40 my-6" />
 
