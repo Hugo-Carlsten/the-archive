@@ -23,7 +23,7 @@ export default function RootLayout({
         <header className="fixed top-0 left-0 right-0 z-50 bg-cream/90 backdrop-blur-sm border-b border-charcoal/10">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <img src="/logo.png" alt="" style={{ height: "55px", width: "auto" }} />
+              <img src="/logo.png" alt="" style={{ height: "60px", width: "auto", verticalAlign: "middle" }} />
               <span className="font-serif text-xl tracking-widest text-charcoal">THE ARCHIVE</span>
             </Link>
 
