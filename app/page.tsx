@@ -7,6 +7,10 @@ export default function Home() {
       <section className="flex-1 flex flex-col items-center justify-center px-6 text-center py-24">
         <div className="w-px h-16 bg-taupe/40 mb-10" />
 
+        <p className="text-xs tracking-[0.3em] text-taupe uppercase mb-6">
+          Est. 2025
+        </p>
+
         <h1 className="font-serif text-6xl sm:text-8xl md:text-9xl tracking-tight text-charcoal mb-6 leading-none">
           The Archive
         </h1>
@@ -16,8 +20,6 @@ export default function Home() {
         <p className="text-lg sm:text-xl text-charcoal/60 tracking-wide font-light max-w-sm">
           Din personliga AI-stylist
         </p>
-
-        <img src="/logo.png" alt="The Archive" style={{ height: "80px", width: "auto" }} className="my-10" />
 
         <div className="flex flex-col sm:flex-row gap-4">
           <Link
