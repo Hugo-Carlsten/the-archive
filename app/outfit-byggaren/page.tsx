@@ -24,7 +24,7 @@ interface OutfitSlots {
 interface MatchResult {
   score: number;
   label: string;
-  tip: string;
+  tip?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -230,14 +230,14 @@ export default function OutfitBuilderPage() {
         const data = await res.json();
         console.log("[outfit-match] Svar från Gemini:", data);
         if (!cancelled) {
-          if (res.ok && data.score) {
+          if (res.ok) {
             setMatch({
-              score: data.score,
-              label: data.label ?? "Godkänd",
-              tip: data.tip ?? "",
+              score: data?.score ?? 0,
+              label: data?.label ?? "",
+              tip: data?.tip ?? "",
             });
-          } else if (!res.ok) {
-            setMatchError(data.error ?? "Okänt fel");
+          } else {
+            setMatchError(data?.error ?? "Okänt fel");
           }
         }
       } catch (err) {
