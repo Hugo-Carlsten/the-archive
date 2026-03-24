@@ -27,13 +27,15 @@ export async function POST(req: NextRequest) {
 
   const prompt = `Du är en stylist. Svara ENDAST med ett JSON-objekt, inga andra ord, ingen förklaring, inga kodblock, ingen markdown.
 
-Exakt detta format (byt ut värdena):
+Du MÅSTE inkludera alla tre fält: score, label och tip.
+
+Exakt detta format:
 {"score":85,"label":"Bra kombination","tip":"Neutrala färger skapar en harmonisk och tidlös look"}
 
 Regler:
 - score: heltal mellan 1 och 100
 - label: exakt ett av: "Perfekt match", "Bra kombination", "Godkänd", "Svår kombination"
-- tip: max 15 ord på svenska
+- tip: alltid en kort styling-kommentar på svenska, max 15 ord — får aldrig utelämnas
 
 Bedöm denna outfit:
 ${itemList}`;
@@ -88,7 +90,7 @@ ${itemList}`;
     const result = {
       score: Math.min(100, Math.max(1, Number(parsed.score) || 50)),
       label: parsed.label ?? "Godkänd",
-      tip: parsed.tip ?? "",
+      tip: parsed.tip ?? parsed.comment ?? parsed.kommentar ?? "",
     };
     console.log("[outfit-match] Result:", result);
     return NextResponse.json(result);

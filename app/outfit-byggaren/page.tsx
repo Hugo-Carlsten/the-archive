@@ -230,9 +230,13 @@ export default function OutfitBuilderPage() {
         const data = await res.json();
         console.log("[outfit-match] Svar från Gemini:", data);
         if (!cancelled) {
-          if (res.ok) {
-            setMatch(data);
-          } else {
+          if (res.ok && data.score) {
+            setMatch({
+              score: data.score,
+              label: data.label ?? "Godkänd",
+              tip: data.tip ?? "",
+            });
+          } else if (!res.ok) {
             setMatchError(data.error ?? "Okänt fel");
           }
         }
