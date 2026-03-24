@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { items }: { items: GarmentInput[] } = await req.json();
+  console.log("[outfit-match] Received", items?.length, "items:", items?.map(i => i.name));
 
   if (!items || items.length < 2) {
     return NextResponse.json({ error: "Minst två plagg krävs" }, { status: 400 });
@@ -57,11 +58,13 @@ ${items.map((item, i) => `${i + 1}. ${item.name} — stil: ${item.style.join(", 
     const cleaned = raw.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
     const match = cleaned.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(match ? match[0] : cleaned);
-    return NextResponse.json({
+    const result = {
       score: Number(parsed.score) || 50,
       label: parsed.label ?? "Godkänd",
       tip: parsed.tip ?? "",
-    });
+    };
+    console.log("[outfit-match] Returning:", result);
+    return NextResponse.json(result);
   } catch (err) {
     console.error("[outfit-match] Parse failed:", err, "raw:", raw);
     return NextResponse.json({ error: "Kunde inte tolka svar" }, { status: 422 });

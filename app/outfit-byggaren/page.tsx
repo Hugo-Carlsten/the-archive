@@ -170,6 +170,7 @@ export default function OutfitBuilderPage() {
   const [activeFilter, setActiveFilter] = useState("Alla");
   const [match, setMatch] = useState<MatchResult | null>(null);
   const [loadingMatch, setLoadingMatch] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -197,27 +198,44 @@ export default function OutfitBuilderPage() {
   useEffect(() => {
     if (filledCount < 2) {
       setMatch(null);
+      setMatchError(null);
       return;
     }
 
     const items = filledSlots.map((s) => {
       const p = slots[s.key]!;
-      return { name: p.name, style: p.style, colors: p.colors };
+      return {
+        name: p.name,
+        style: Array.isArray(p.style) ? p.style : [],
+        colors: Array.isArray(p.colors) ? p.colors : [],
+      };
     });
+
+    console.log("[outfit-match] Fetching score for", items.length, "items:", items.map(i => i.name));
 
     let cancelled = false;
 
     async function fetchMatch() {
       setLoadingMatch(true);
+      setMatchError(null);
       try {
         const res = await fetch("/api/outfit-match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items }),
         });
-        if (res.ok && !cancelled) setMatch(await res.json());
-      } catch {
-        // silent
+        const data = await res.json();
+        console.log("[outfit-match] Response:", res.status, data);
+        if (!cancelled) {
+          if (res.ok) {
+            setMatch(data);
+          } else {
+            setMatchError(data.error ?? "Okänt fel");
+          }
+        }
+      } catch (err) {
+        console.error("[outfit-match] Fetch failed:", err);
+        if (!cancelled) setMatchError("Kunde inte nå API:et");
       } finally {
         if (!cancelled) setLoadingMatch(false);
       }
@@ -395,6 +413,8 @@ export default function OutfitBuilderPage() {
                     </svg>
                     <span className="text-xs text-charcoal/40">Analyserar outfit...</span>
                   </div>
+                ) : matchError ? (
+                  <p className="text-xs text-red-500">{matchError}</p>
                 ) : match ? (
                   <>
                     <div className="flex items-end gap-3">
