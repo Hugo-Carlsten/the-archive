@@ -85,29 +85,46 @@ ${itemList}`;
     return NextResponse.json({ score: 50, label: "Godkänd", tip: "" });
   }
 
-  const cleaned = raw
+  // Normalize: strip markdown fences, replace curly/smart quotes with straight quotes
+  const normalized = raw
     .replace(/```json\s*/gi, "")
     .replace(/```/g, "")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
     .trim();
 
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  const jsonStr = start !== -1 && end !== -1 ? cleaned.slice(start, end + 1) : cleaned;
+  console.log("[outfit-match] Normalized:", normalized);
 
-  console.log("[outfit-match] JSON string to parse:", jsonStr);
+  let parsed: { score?: unknown; label?: unknown; tip?: unknown; comment?: unknown; kommentar?: unknown } = {};
 
   try {
-    const parsed = JSON.parse(jsonStr);
-    const result = {
-      score: Math.min(100, Math.max(1, Number(parsed.score) || 50)),
-      label: parsed.label ?? parsed.Label ?? "Godkänd",
-      tip: parsed.tip ?? parsed.comment ?? parsed.kommentar ?? "",
-    };
-    console.log("[outfit-match] Result:", result);
-    return NextResponse.json(result);
-  } catch (err) {
-    console.error("[outfit-match] JSON.parse failed. jsonStr:", jsonStr, "err:", err);
-    // Return fallback with score so frontend always shows something
-    return NextResponse.json({ score: 50, label: "Godkänd", tip: "" });
+    let result = JSON.parse(normalized);
+    // Handle double-encoded JSON (string inside string)
+    if (typeof result === "string") {
+      result = JSON.parse(result);
+    }
+    parsed = result;
+  } catch {
+    // Fallback: extract first {...} block and try again
+    const jsonMatch = normalized.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch (err2) {
+        console.error("[outfit-match] All parse attempts failed:", err2, "normalized:", normalized);
+        return NextResponse.json({ score: 50, label: "Godkänd", tip: "" });
+      }
+    } else {
+      console.error("[outfit-match] No JSON object found in response:", normalized);
+      return NextResponse.json({ score: 50, label: "Godkänd", tip: "" });
+    }
   }
+
+  const result = {
+    score: Math.min(100, Math.max(1, Number(parsed.score) || 50)),
+    label: String(parsed.label ?? "Godkänd"),
+    tip: String(parsed.tip ?? parsed.comment ?? parsed.kommentar ?? ""),
+  };
+  console.log("[outfit-match] Result:", result);
+  return NextResponse.json(result);
 }
