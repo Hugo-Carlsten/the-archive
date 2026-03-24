@@ -33,7 +33,7 @@ export default function RootLayout({
             <nav className="hidden md:flex items-center gap-8">
               {[
                 { href: "/feed", label: "Feed" },
-                { href: "/outfit-builder", label: "Outfit-byggaren" },
+                { href: "/outfit-byggaren", label: "Outfit-byggaren" },
                 { href: "/wishlist", label: "Wishlist" },
                 { href: "/profile", label: "Profil" },
               ].map(({ href, label }) => (
@@ -51,7 +51,7 @@ export default function RootLayout({
             <nav className="flex md:hidden items-center gap-5">
               {[
                 { href: "/feed", label: "Feed" },
-                { href: "/outfit-builder", label: "Outfits" },
+                { href: "/outfit-byggaren", label: "Outfits" },
                 { href: "/wishlist", label: "Wishlist" },
                 { href: "/profile", label: "Profil" },
               ].map(({ href, label }) => (
