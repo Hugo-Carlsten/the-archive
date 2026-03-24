@@ -10,7 +10,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git remote:*)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(claude doctor:*)"
     ]
   }
 }

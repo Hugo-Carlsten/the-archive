@@ -23,7 +23,7 @@ export default function RootLayout({
         <header className="fixed top-0 left-0 right-0 z-50 bg-cream/90 backdrop-blur-sm border-b border-charcoal/10">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <Link href="/" aria-label="The Archive">
-              <img src="/logo.png" alt="The Archive" style={{ height: "45px", width: "auto" }} />
+              <img src="/logo.jpg" alt="The Archive" style={{ height: "45px", width: "auto" }} />
             </Link>
 
             {/* Desktop nav */}
