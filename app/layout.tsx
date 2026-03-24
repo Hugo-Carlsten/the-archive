@@ -22,11 +22,8 @@ export default function RootLayout({
       <body className="bg-cream text-charcoal font-sans antialiased">
         <header className="fixed top-0 left-0 right-0 z-50 bg-cream/90 backdrop-blur-sm border-b border-charcoal/10">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-            <Link
-              href="/"
-              className="font-serif text-xl tracking-widest text-charcoal hover:text-taupe transition-colors"
-            >
-              THE ARCHIVE
+            <Link href="/" aria-label="The Archive">
+              <img src="/logo.png" alt="The Archive" style={{ height: "45px", width: "auto" }} />
             </Link>
 
             {/* Desktop nav */}
