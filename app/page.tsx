@@ -21,7 +21,7 @@ export default function Home() {
           Din personliga AI-stylist
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 mt-10">
           <Link
             href="/onboarding"
             className="px-10 py-3.5 bg-charcoal text-cream text-sm tracking-[0.15em] uppercase hover:bg-taupe transition-colors duration-300"
