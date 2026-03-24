@@ -12,22 +12,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "GEMINI_API_KEY saknas" }, { status: 500 });
   }
 
-  const { items }: { items: GarmentInput[] } = await req.json();
-  console.log("[outfit-match] Received", items?.length, "items:", items?.map(i => i.name));
+  const body = await req.json();
+  const { items }: { items: GarmentInput[] } = body;
 
   if (!items || items.length < 2) {
     return NextResponse.json({ error: "Minst två plagg krävs" }, { status: 400 });
   }
 
-  const prompt = `Du är en professionell stylist. Bedöm hur väl dessa plagg passar ihop som en outfit och returnera ENDAST JSON utan markdown:
-{
-  "score": (heltal 1-100),
-  "label": (exakt ett av: "Perfekt match" / "Bra kombination" / "Godkänd" / "Svår kombination"),
-  "tip": (en kort styling-kommentar på svenska, max 15 ord)
-}
+  console.log("[outfit-match] Items:", items.map((i) => i.name));
 
-Plaggen i outfiten:
-${items.map((item, i) => `${i + 1}. ${item.name} — stil: ${item.style.join(", ")} — färger: ${item.colors.join(", ")}`).join("\n")}`;
+  const itemList = items
+    .map((item, i) => `${i + 1}. ${item.name} (stil: ${item.style.join(", ") || "okänd"}, färger: ${item.colors.join(", ") || "okänd"})`)
+    .join("\n");
+
+  const prompt = `Du är en stylist. Svara ENDAST med ett JSON-objekt, inga andra ord, ingen förklaring, inga kodblock, ingen markdown.
+
+Exakt detta format (byt ut värdena):
+{"score":85,"label":"Bra kombination","tip":"Neutrala färger skapar en harmonisk och tidlös look"}
+
+Regler:
+- score: heltal mellan 1 och 100
+- label: exakt ett av: "Perfekt match", "Bra kombination", "Godkänd", "Svår kombination"
+- tip: max 15 ord på svenska
+
+Bedöm denna outfit:
+${itemList}`;
 
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -37,9 +46,8 @@ ${items.map((item, i) => `${i + 1}. ${item.name} — stil: ${item.style.join(", 
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.3,
+          temperature: 0.2,
           maxOutputTokens: 256,
-          responseMimeType: "application/json",
         },
       }),
     }
@@ -47,26 +55,45 @@ ${items.map((item, i) => `${i + 1}. ${item.name} — stil: ${item.style.join(", 
 
   if (!geminiRes.ok) {
     const err = await geminiRes.text();
-    console.error("[outfit-match] Gemini error:", geminiRes.status, err);
+    console.error("[outfit-match] Gemini HTTP error:", geminiRes.status, err);
     return NextResponse.json({ error: "Gemini-fel" }, { status: 500 });
   }
 
   const data = await geminiRes.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+  // gemini-2.5-flash is a thinking model — search all parts for the last non-empty text
+  const parts: { text?: string }[] = data.candidates?.[0]?.content?.parts ?? [];
+  const raw = [...parts].reverse().find((p) => p.text && p.text.trim())?.text ?? "";
+
+  console.log("[outfit-match] Raw Gemini response:", raw);
+
+  if (!raw) {
+    console.error("[outfit-match] Empty response, finishReason:", data.candidates?.[0]?.finishReason);
+    return NextResponse.json({ error: "Tomt svar från Gemini" }, { status: 422 });
+  }
+
+  // Strip markdown fences and extract JSON object
+  const cleaned = raw
+    .replace(/```json\s*/gi, "")
+    .replace(/```/g, "")
+    .trim();
+
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
+
+  console.log("[outfit-match] Cleaned JSON string:", jsonStr);
 
   try {
-    const cleaned = raw.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(match ? match[0] : cleaned);
+    const parsed = JSON.parse(jsonStr);
     const result = {
-      score: Number(parsed.score) || 50,
+      score: Math.min(100, Math.max(1, Number(parsed.score) || 50)),
       label: parsed.label ?? "Godkänd",
       tip: parsed.tip ?? "",
     };
-    console.log("[outfit-match] Returning:", result);
+    console.log("[outfit-match] Result:", result);
     return NextResponse.json(result);
   } catch (err) {
-    console.error("[outfit-match] Parse failed:", err, "raw:", raw);
-    return NextResponse.json({ error: "Kunde inte tolka svar" }, { status: 422 });
+    console.error("[outfit-match] JSON.parse failed. jsonStr:", jsonStr, "err:", err);
+    return NextResponse.json({ error: "Kunde inte tolka svar", raw }, { status: 422 });
   }
 }

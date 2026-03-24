@@ -191,18 +191,21 @@ export default function OutfitBuilderPage() {
     load();
   }, []);
 
-  // Fetch match score when 2+ slots filled
+  // Stable key that changes only when the selected product IDs change
+  const slotKey = SLOTS.map((s) => slots[s.key]?.id ?? "").join("|");
   const filledSlots = SLOTS.filter((s) => slots[s.key] !== null);
   const filledCount = filledSlots.length;
 
   useEffect(() => {
-    if (filledCount < 2) {
+    const currentFilled = SLOTS.filter((s) => slots[s.key] !== null);
+
+    if (currentFilled.length < 2) {
       setMatch(null);
       setMatchError(null);
       return;
     }
 
-    const items = filledSlots.map((s) => {
+    const items = currentFilled.map((s) => {
       const p = slots[s.key]!;
       return {
         name: p.name,
@@ -211,7 +214,7 @@ export default function OutfitBuilderPage() {
       };
     });
 
-    console.log("[outfit-match] Fetching score for", items.length, "items:", items.map(i => i.name));
+    console.log("[outfit-match] Anropar outfit-match med:", items.map((i) => i.name));
 
     let cancelled = false;
 
@@ -225,7 +228,7 @@ export default function OutfitBuilderPage() {
           body: JSON.stringify({ items }),
         });
         const data = await res.json();
-        console.log("[outfit-match] Response:", res.status, data);
+        console.log("[outfit-match] Svar från Gemini:", data);
         if (!cancelled) {
           if (res.ok) {
             setMatch(data);
@@ -243,8 +246,9 @@ export default function OutfitBuilderPage() {
 
     fetchMatch();
     return () => { cancelled = true; };
+  // slotKey is a stable primitive derived from slots — safe to use as dep
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slots]);
+  }, [slotKey]);
 
   // AI suggestion: when exactly 3 slots filled, suggest for the empty one
   const emptySlot =
@@ -414,7 +418,15 @@ export default function OutfitBuilderPage() {
                     <span className="text-xs text-charcoal/40">Analyserar outfit...</span>
                   </div>
                 ) : matchError ? (
-                  <p className="text-xs text-red-500">{matchError}</p>
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs text-red-500">{matchError}</p>
+                    <button
+                      onClick={() => setSlots((s) => ({ ...s }))}
+                      className="text-xs underline text-charcoal/50 text-left"
+                    >
+                      Försök igen
+                    </button>
+                  </div>
                 ) : match ? (
                   <>
                     <div className="flex items-end gap-3">
