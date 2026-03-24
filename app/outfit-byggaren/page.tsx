@@ -21,11 +21,6 @@ interface OutfitSlots {
   outerwear: FeedProduct | null;
 }
 
-interface MatchResult {
-  score: number;
-  label: string;
-  tip?: string;
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -168,9 +163,10 @@ export default function OutfitBuilderPage() {
     outerwear: null,
   });
   const [activeFilter, setActiveFilter] = useState("Alla");
-  const [match, setMatch] = useState<MatchResult | null>(null);
+  const [matchScore, setMatchScore] = useState(0);
+  const [matchLabel, setMatchLabel] = useState("");
+  const [matchTip, setMatchTip] = useState("");
   const [loadingMatch, setLoadingMatch] = useState(false);
-  const [matchError, setMatchError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -200,12 +196,13 @@ export default function OutfitBuilderPage() {
     const currentFilled = SLOTS.filter((s) => slots[s.key] !== null);
 
     if (currentFilled.length < 2) {
-      setMatch(null);
-      setMatchError(null);
+      setMatchScore(0);
+      setMatchLabel("");
+      setMatchTip("");
       return;
     }
 
-    const items = currentFilled.map((s) => {
+    const selectedItems = currentFilled.map((s) => {
       const p = slots[s.key]!;
       return {
         name: p.name,
@@ -214,35 +211,37 @@ export default function OutfitBuilderPage() {
       };
     });
 
-    console.log("[outfit-match] Anropar outfit-match med:", items.map((i) => i.name));
+    console.log("[outfit-match] Anropar outfit-match med:", selectedItems.map((i) => i.name));
 
     let cancelled = false;
 
     async function fetchMatch() {
       setLoadingMatch(true);
-      setMatchError(null);
       try {
         const res = await fetch("/api/outfit-match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items }),
+          body: JSON.stringify({ items: selectedItems }),
         });
-        const data = await res.json();
-        console.log("[outfit-match] Svar från Gemini:", data);
+        const text = await res.text();
+        console.log("[outfit-match] Raw response:", text);
+        const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const start = cleaned.indexOf("{");
+        const end = cleaned.lastIndexOf("}");
+        const jsonStr = cleaned.slice(start, end + 1);
+        const data = JSON.parse(jsonStr);
         if (!cancelled) {
-          if (res.ok) {
-            setMatch({
-              score: data?.score ?? 0,
-              label: data?.label ?? "",
-              tip: data?.tip ?? "",
-            });
-          } else {
-            setMatchError(data?.error ?? "Okänt fel");
-          }
+          setMatchScore(data.score ?? 0);
+          setMatchLabel(data.label ?? "Betyg");
+          setMatchTip(data.tip ?? "");
         }
       } catch (err) {
-        console.error("[outfit-match] Fetch failed:", err);
-        if (!cancelled) setMatchError("Kunde inte nå API:et");
+        console.error("[outfit-match] Parse error:", err);
+        if (!cancelled) {
+          setMatchScore(0);
+          setMatchLabel("Kunde inte beräkna");
+          setMatchTip("");
+        }
       } finally {
         if (!cancelled) setLoadingMatch(false);
       }
@@ -250,7 +249,6 @@ export default function OutfitBuilderPage() {
 
     fetchMatch();
     return () => { cancelled = true; };
-  // slotKey is a stable primitive derived from slots — safe to use as dep
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slotKey]);
 
@@ -284,12 +282,14 @@ export default function OutfitBuilderPage() {
 
   function clearOutfit() {
     setSlots({ top: null, bottom: null, shoes: null, outerwear: null });
-    setMatch(null);
+    setMatchScore(0);
+    setMatchLabel("");
+    setMatchTip("");
     setSaved(false);
   }
 
   async function saveOutfit() {
-    if (!user || user === "loading" || !match) return;
+    if (!user || user === "loading" || !matchScore) return;
     setSaving(true);
     try {
       const uid = (user as User).uid;
@@ -304,8 +304,8 @@ export default function OutfitBuilderPage() {
             price: slots[s.key]!.price,
           }])
         ),
-        score: match.score,
-        label: match.label,
+        score: matchScore,
+        label: matchLabel,
         savedAt: Timestamp.now(),
       });
       setSaved(true);
@@ -421,32 +421,24 @@ export default function OutfitBuilderPage() {
                     </svg>
                     <span className="text-xs text-charcoal/40">Analyserar outfit...</span>
                   </div>
-                ) : matchError ? (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-xs text-red-500">{matchError}</p>
-                    <button
-                      onClick={() => setSlots((s) => ({ ...s }))}
-                      className="text-xs underline text-charcoal/50 text-left"
-                    >
-                      Försök igen
-                    </button>
-                  </div>
-                ) : match ? (
+                ) : matchScore > 0 ? (
                   <>
                     <div className="flex items-end gap-3">
-                      <span className={`font-serif text-5xl leading-none ${scoreTextColor(match.score)}`}>
-                        {match.score}
+                      <span className={`font-serif text-5xl leading-none ${scoreTextColor(matchScore)}`}>
+                        {matchScore}
                       </span>
                       <span className="text-charcoal/30 text-sm mb-1">/100</span>
-                      <span className={`ml-auto text-xs px-2.5 py-1 ${scoreBadgeClass(match.score)}`}>
-                        {match.label}
-                      </span>
+                      {matchLabel ? (
+                        <span className={`ml-auto text-xs px-2.5 py-1 ${scoreBadgeClass(matchScore)}`}>
+                          {matchLabel}
+                        </span>
+                      ) : null}
                     </div>
-                    {match.tip && (
+                    {matchTip ? (
                       <p className="text-xs italic text-charcoal/60 leading-relaxed">
-                        &ldquo;{match.tip}&rdquo;
+                        &ldquo;{matchTip}&rdquo;
                       </p>
-                    )}
+                    ) : null}
 
                     {/* Save button */}
                     {user && user !== "loading" ? (
