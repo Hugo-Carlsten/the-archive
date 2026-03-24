@@ -17,7 +17,7 @@ export default function Home() {
           Din personliga AI-stylist
         </p>
 
-        <img src="/logo.jpg" alt="The Archive" style={{ height: "80px", width: "auto" }} className="my-10" />
+        <img src="/logo.png" alt="The Archive" style={{ height: "80px", width: "auto" }} className="my-10" />
 
         <div className="flex flex-col sm:flex-row gap-4">
           <Link
