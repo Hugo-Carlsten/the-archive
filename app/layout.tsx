@@ -22,9 +22,11 @@ export default function RootLayout({
       <body className="bg-cream text-charcoal font-sans antialiased">
         <header className="fixed top-0 left-0 right-0 z-50 bg-cream/90 backdrop-blur-sm border-b border-charcoal/10">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <span className="font-serif text-xl tracking-widest text-charcoal">THE ARCHIVE</span>
-              <img src="/logo.jpg" alt="" style={{ height: "35px", width: "auto" }} />
+            <Link
+              href="/"
+              className="font-serif text-xl tracking-widest text-charcoal hover:text-taupe transition-colors"
+            >
+              THE ARCHIVE
             </Link>
 
             {/* Desktop nav */}

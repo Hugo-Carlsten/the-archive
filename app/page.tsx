@@ -7,14 +7,9 @@ export default function Home() {
       <section className="flex-1 flex flex-col items-center justify-center px-6 text-center py-24">
         <div className="w-px h-16 bg-taupe/40 mb-10" />
 
-        <p className="text-xs tracking-[0.3em] text-taupe uppercase mb-6">
-          Est. 2025
-        </p>
-
-        <h1 className="font-serif text-6xl sm:text-8xl md:text-9xl tracking-tight text-charcoal mb-4 leading-none">
+        <h1 className="font-serif text-6xl sm:text-8xl md:text-9xl tracking-tight text-charcoal mb-6 leading-none">
           The Archive
         </h1>
-        <img src="/logo.jpg" alt="" style={{ height: "100px", width: "auto" }} className="mb-6" />
 
         <div className="w-24 h-px bg-taupe/40 my-6" />
 
@@ -22,7 +17,9 @@ export default function Home() {
           Din personliga AI-stylist
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 mt-14">
+        <img src="/logo.jpg" alt="The Archive" style={{ height: "80px", width: "auto" }} className="my-10" />
+
+        <div className="flex flex-col sm:flex-row gap-4">
           <Link
             href="/onboarding"
             className="px-10 py-3.5 bg-charcoal text-cream text-sm tracking-[0.15em] uppercase hover:bg-taupe transition-colors duration-300"
