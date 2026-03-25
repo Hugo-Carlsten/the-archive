@@ -13,6 +13,8 @@ const config: Config = {
         charcoal: "#2C2C2C",
         taupe: "#B5956A",
         "taupe-dark": "#9A7D55",
+        midnight: "#1C2B2D",
+        border: "#E8E2D9",
       },
       fontFamily: {
         serif: ["Georgia", "Cambria", "Times New Roman", "serif"],

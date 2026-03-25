@@ -52,19 +52,24 @@ function ProductCard({
   wishlisted: boolean;
   onToggleWishlist: () => void;
 }) {
+  const hasDiscount = product.originalPrice != null && product.originalPrice > product.price;
+  const discountPct = hasDiscount
+    ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
+    : 0;
+
   return (
-    <article className="group flex flex-col cursor-pointer">
+    <article className="group flex flex-col">
       <a
         href={product.link}
         target="_blank"
         rel="noopener noreferrer"
-        className="block relative overflow-hidden bg-charcoal/5 aspect-[3/4]"
+        className="block relative overflow-hidden border border-border aspect-[3/4]"
       >
         <img
           src={product.imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"}
           alt={product.name}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          className="transition-transform duration-500 group-hover:scale-105"
+          className="transition-transform duration-700 ease-out group-hover:scale-[1.04]"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src =
               "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive";
@@ -72,8 +77,14 @@ function ProductCard({
         />
 
         {product.isSecondHand && (
-          <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-taupe text-cream text-[10px] tracking-widest uppercase">
+          <span className="absolute top-3 left-3 px-2 py-0.5 bg-taupe text-cream text-[9px] tracking-[0.2em] uppercase">
             Second hand
+          </span>
+        )}
+
+        {hasDiscount && (
+          <span className="absolute top-3 left-3 px-2 py-0.5 bg-midnight text-cream text-[9px] tracking-[0.2em] uppercase">
+            -{discountPct}%
           </span>
         )}
 
@@ -84,19 +95,21 @@ function ProductCard({
             onToggleWishlist();
           }}
           aria-label={wishlisted ? "Ta bort från wishlist" : "Lägg till i wishlist"}
-          className="absolute top-2.5 right-2.5 w-8 h-8 flex items-center justify-center bg-cream/90 hover:bg-cream transition-colors"
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-cream/95 hover:bg-cream transition-colors duration-200"
         >
           <HeartIcon filled={wishlisted} />
         </button>
       </a>
 
-      <div className="pt-3 flex flex-col gap-1 flex-1">
-        <span className="text-[10px] tracking-[0.2em] text-taupe uppercase">{product.brand}</span>
-        <h2 className="text-sm text-charcoal leading-snug">{product.name}</h2>
+      <div className="pt-4 flex flex-col gap-1.5 flex-1">
+        <span className="text-[9px] tracking-[0.3em] text-taupe uppercase">{product.brand}</span>
+        <h2 className="text-xs text-charcoal/70 leading-snug tracking-wide">{product.name}</h2>
         <div className="flex items-baseline gap-2 mt-auto pt-2">
-          <span className="text-sm font-medium text-charcoal">{product.price} kr</span>
-          {product.originalPrice && (
-            <span className="text-xs text-charcoal/40 line-through">{product.originalPrice} kr</span>
+          <span className={`text-sm tracking-wide ${hasDiscount ? "text-midnight font-medium" : "text-charcoal"}`}>
+            {product.price} kr
+          </span>
+          {hasDiscount && (
+            <span className="text-xs text-charcoal/30 line-through">{product.originalPrice} kr</span>
           )}
         </div>
       </div>
@@ -215,50 +228,50 @@ export default function FeedPage() {
       <div className="max-w-6xl mx-auto">
 
         {/* Header */}
-        <div className="flex flex-col items-center text-center mb-10">
-          <div className="w-px h-10 bg-taupe/40 mb-6" />
-          <h1 className="font-serif text-4xl text-charcoal tracking-tight mb-2">
+        <div className="flex flex-col items-center text-center mb-14">
+          <div className="w-px h-12 bg-border mb-8" />
+          <h1 className="font-serif text-5xl sm:text-6xl text-charcoal tracking-[0.04em] mb-3">
             {isRanked ? "Din personliga feed" : "Feed"}
           </h1>
-          <p className="text-sm text-charcoal/50 tracking-wide">
+          <p className="text-[10px] tracking-[0.3em] text-charcoal/40 uppercase">
             {loading ? "Laddar..." : `${filtered.length} plagg`}
             {isRanked && !loading && (
-              <span className="ml-2 text-taupe">· Anpassad för din stil</span>
+              <span className="ml-3 text-taupe">· Anpassad för din stil</span>
             )}
           </p>
-          <div className="w-16 h-px bg-taupe/40 mt-6" />
+          <div className="w-12 h-px bg-border mt-8" />
         </div>
 
         {/* No profile banner */}
         {!loading && !hasProfile && (
-          <div className="mb-10 border border-taupe/30 bg-taupe/5 px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="mb-12 border border-border px-8 py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-charcoal font-medium mb-1">
+              <p className="text-sm text-charcoal tracking-wide mb-1">
                 Skapa din stilprofil för personliga förslag
               </p>
-              <p className="text-xs text-charcoal/50">
+              <p className="text-xs text-charcoal/40 tracking-wide">
                 Berätta om din stil så anpassar vi feeden efter dig
               </p>
             </div>
             <Link
               href="/onboarding"
-              className="flex-shrink-0 px-6 py-2.5 bg-charcoal text-cream text-xs tracking-[0.15em] uppercase hover:bg-taupe transition-colors duration-200"
+              className="flex-shrink-0 px-8 py-3 bg-midnight text-cream text-xs tracking-[0.2em] uppercase hover:bg-charcoal transition-colors duration-300"
             >
-              Kom igång →
+              Kom igång
             </Link>
           </div>
         )}
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-10 justify-center">
+        <div className="flex flex-wrap gap-2 mb-12 justify-center">
           {FILTERS.map((label) => (
             <button
               key={label}
               onClick={() => setActiveFilter(label)}
-              className={`px-4 py-1.5 text-xs tracking-[0.12em] uppercase border transition-colors duration-200 ${
+              className={`px-5 py-2 text-[9px] tracking-[0.2em] uppercase border transition-colors duration-300 ${
                 activeFilter === label
-                  ? "border-charcoal bg-charcoal text-cream"
-                  : "border-charcoal/20 text-charcoal/60 hover:border-charcoal/50 hover:text-charcoal"
+                  ? "border-midnight bg-midnight text-cream"
+                  : "border-border text-charcoal/50 hover:border-charcoal/40 hover:text-charcoal"
               }`}
             >
               {label}

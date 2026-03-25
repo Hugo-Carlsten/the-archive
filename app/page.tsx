@@ -4,64 +4,66 @@ export default function Home() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-cream flex flex-col">
       {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center px-6 text-center py-24">
-        <div className="w-px h-16 bg-taupe/40 mb-10" />
-
-        <p className="text-xs tracking-[0.3em] text-taupe uppercase mb-6">
+      <section className="flex-1 flex flex-col items-center justify-center px-6 text-center py-32">
+        <p className="animate-fade-in-up text-[10px] tracking-[0.4em] text-taupe uppercase mb-10">
           Est. 2025
         </p>
 
-        <h1 className="font-serif text-6xl sm:text-8xl md:text-9xl tracking-tight text-charcoal mb-6 leading-none">
+        <div className="animate-fade-in-up-delay w-px h-20 bg-border mb-12" />
+
+        <h1 className="animate-fade-in-up-delay font-serif text-[clamp(4rem,14vw,10rem)] tracking-[0.06em] text-charcoal leading-none mb-10">
           The Archive
         </h1>
 
-        <div className="w-24 h-px bg-taupe/40 my-6" />
+        <div className="animate-fade-in-up-delay-2 w-20 h-px bg-taupe/50 mb-10" />
 
-        <p className="text-lg sm:text-xl text-charcoal/60 tracking-wide font-light max-w-sm">
+        <p className="animate-fade-in-up-delay-2 text-sm tracking-[0.2em] text-charcoal/40 uppercase font-light max-w-xs leading-loose mb-16">
           Din personliga AI-stylist
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 mt-10">
+        <div className="animate-fade-in-up-delay-3 flex flex-col sm:flex-row gap-4">
           <Link
             href="/onboarding"
-            className="px-10 py-3.5 bg-charcoal text-cream text-sm tracking-[0.15em] uppercase hover:bg-taupe transition-colors duration-300"
+            className="px-12 py-4 bg-midnight text-cream text-xs tracking-[0.25em] uppercase hover:bg-charcoal transition-colors duration-500"
           >
             Kom igång
           </Link>
           <Link
             href="/login"
-            className="px-10 py-3.5 border border-charcoal/30 text-charcoal text-sm tracking-[0.15em] uppercase hover:border-taupe hover:text-taupe transition-colors duration-300"
+            className="px-12 py-4 border border-charcoal/20 text-charcoal text-xs tracking-[0.25em] uppercase hover:border-midnight hover:text-midnight transition-colors duration-500"
           >
             Logga in
           </Link>
         </div>
 
-        <div className="w-px h-16 bg-taupe/40 mt-14" />
+        <div className="animate-fade-in-up-delay-3 w-px h-20 bg-border mt-16" />
       </section>
 
       {/* Feature strip */}
-      <section className="border-t border-charcoal/10 py-12 px-6">
-        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-10 text-center">
+      <section className="border-t border-border py-20 px-6">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-16 text-center">
           {[
             {
+              label: "01",
               title: "Bygg din garderob",
               desc: "Katalogisera dina plagg och skapa en digital kopia av din stil.",
             },
             {
+              label: "02",
               title: "AI-genererade outfits",
               desc: "Få personliga outfitförslag baserade på din stil och tillfälle.",
             },
             {
+              label: "03",
               title: "Spara & inspireras",
               desc: "Samla inspiration och bygg ditt personliga stilarkiv.",
             },
-          ].map(({ title, desc }) => (
-            <div key={title} className="flex flex-col items-center gap-3">
-              <div className="w-8 h-px bg-taupe mb-1" />
-              <h3 className="font-serif text-lg text-charcoal tracking-wide">
-                {title}
-              </h3>
-              <p className="text-sm text-charcoal/50 leading-relaxed max-w-[200px]">
+          ].map(({ label, title, desc }) => (
+            <div key={title} className="flex flex-col items-center gap-4">
+              <p className="text-[10px] tracking-[0.3em] text-taupe uppercase">{label}</p>
+              <div className="w-px h-8 bg-border" />
+              <h3 className="font-serif text-xl text-charcoal tracking-wide">{title}</h3>
+              <p className="text-xs text-charcoal/40 leading-loose tracking-wide max-w-[180px]">
                 {desc}
               </p>
             </div>
