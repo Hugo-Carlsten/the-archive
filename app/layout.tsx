@@ -33,7 +33,7 @@ export default function RootLayout({
                 { href: "/feed", label: "Feed" },
                 { href: "/outfit-byggaren", label: "Outfit-byggaren" },
                 { href: "/wishlist", label: "Wishlist" },
-                { href: "/profile", label: "Profil" },
+                { href: "/profil", label: "Profil" },
               ].map(({ href, label }) => (
                 <Link
                   key={href}
@@ -51,7 +51,7 @@ export default function RootLayout({
                 { href: "/feed", label: "Feed" },
                 { href: "/outfit-byggaren", label: "Outfits" },
                 { href: "/wishlist", label: "Wishlist" },
-                { href: "/profile", label: "Profil" },
+                { href: "/profil", label: "Profil" },
               ].map(({ href, label }) => (
                 <Link
                   key={href}
