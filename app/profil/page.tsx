@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { doc, getDoc, getDocs, collection, Timestamp } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, query, orderBy, limit, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
@@ -19,34 +19,17 @@ interface StyleProfile {
   createdAt?: Timestamp;
 }
 
-interface WardrobeItem {
+interface WishlistItem {
   id: string;
-  imageUrl: string;
-  analyzedStyle: string[];
-  colors: string[];
-  category: string;
-  uploadedAt?: Timestamp;
-}
-
-interface OutfitItem {
-  id: string;
-  name: string;
-  brand: string;
-  imageUrl: string;
-  price: number;
+  isSecondHand?: boolean;
 }
 
 interface SavedOutfit {
   id: string;
-  items: Record<string, OutfitItem>;
-  score: number;
-  label: string;
+  items?: Record<string, { name?: string; imageUrl?: string; price?: number }>;
+  score?: number;
+  label?: string;
   savedAt?: Timestamp;
-}
-
-interface WishlistItem {
-  id: string;
-  isSecondHand: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -55,12 +38,6 @@ const SHOPPING_MODE_LABEL: Record<string, string> = {
   second_hand: "Second Hand",
   new: "Nytt",
   mixed: "Blandat",
-};
-
-const GENDER_LABEL: Record<string, string> = {
-  dam: "Dam",
-  herr: "Herr",
-  båda: "Båda",
 };
 
 const PRICE_RANGE_LABEL: Record<string, string> = {
@@ -79,11 +56,6 @@ const COLOR_HEX_MAP: Record<string, string> = {
   silver: "#c0c0c0", guld: "#c9a84c", offwhite: "#f0ece4", camel: "#c19a6b",
 };
 
-const CATEGORY_LABEL: Record<string, string> = {
-  top: "Topp", bottom: "Byxor", outerwear: "Jacka",
-  shoes: "Skor", accessory: "Accessoar", dress: "Klänning",
-};
-
 function scoreBadgeClass(score: number) {
   if (score >= 80) return "bg-green-50 text-green-700 border border-green-200";
   if (score >= 60) return "bg-yellow-50 text-yellow-700 border border-yellow-200";
@@ -91,20 +63,6 @@ function scoreBadgeClass(score: number) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-function Toast({ message, visible }: { message: string; visible: boolean }) {
-  return (
-    <div
-      className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-      }`}
-    >
-      <div className="bg-charcoal text-cream text-xs tracking-[0.15em] uppercase px-6 py-3 shadow-lg">
-        {message}
-      </div>
-    </div>
-  );
-}
 
 function SectionDivider({ title }: { title: string }) {
   return (
@@ -116,17 +74,33 @@ function SectionDivider({ title }: { title: string }) {
   );
 }
 
+function StatCard({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="bg-cream border border-charcoal/10 px-4 py-6 text-center flex flex-col items-center gap-1">
+      <span className="font-serif text-4xl text-charcoal leading-none">{value}</span>
+      <span className="text-[10px] tracking-[0.15em] text-charcoal/40 uppercase mt-1">{label}</span>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null | "loading">("loading");
+
+  // Data
   const [styleProfile, setStyleProfile] = useState<StyleProfile | null>(null);
-  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
-  const [outfits, setOutfits] = useState<SavedOutfit[]>([]);
+  const [wardrobeCount, setWardrobeCount] = useState(0);
+  const [outfitCount, setOutfitCount] = useState(0);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [latestOutfits, setLatestOutfits] = useState<SavedOutfit[]>([]);
+
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState({ message: "", visible: false });
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
@@ -135,41 +109,59 @@ export default function ProfilPage() {
     });
   }, []);
 
+  // ── Load Firestore data ───────────────────────────────────────────────────
+
   useEffect(() => {
     if (user === "loading" || !user) return;
     const uid = (user as User).uid;
 
-    async function loadData() {
+    async function load() {
       try {
-        const [profileSnap, wardrobeSnap, outfitsSnap, wishlistSnap] = await Promise.all([
-          getDoc(doc(db, "users", uid)),
-          getDocs(collection(db, "wardrobes", uid, "items")),
-          getDocs(collection(db, "users", uid, "outfits")),
-          getDocs(collection(db, "users", uid, "wishlist")),
-        ]);
-
+        // Profile is stored directly on users/{uid} by onboarding
+        const profileSnap = await getDoc(doc(db, "users", uid));
         if (profileSnap.exists()) {
           setStyleProfile(profileSnap.data() as StyleProfile);
         }
-        setWardrobe(wardrobeSnap.docs.map((d) => ({ id: d.id, ...d.data() } as WardrobeItem)));
-        setOutfits(outfitsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as SavedOutfit)));
+
+        // Wardrobe count
+        const wardrobeSnap = await getDocs(collection(db, "wardrobes", uid, "items"));
+        setWardrobeCount(wardrobeSnap.size);
+
+        // Outfits — fetch all for count, keep latest 3 for display
+        const outfitsSnap = await getDocs(
+          query(collection(db, "users", uid, "outfits"), orderBy("savedAt", "desc"), limit(3))
+        );
+        // Total count via a separate query (or just use the limited snap for display)
+        const allOutfitsSnap = await getDocs(collection(db, "users", uid, "outfits"));
+        setOutfitCount(allOutfitsSnap.size);
+        setLatestOutfits(outfitsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as SavedOutfit)));
+
+        // Wishlist
+        const wishlistSnap = await getDocs(collection(db, "users", uid, "wishlist"));
         setWishlist(wishlistSnap.docs.map((d) => ({ id: d.id, ...d.data() } as WishlistItem)));
       } finally {
         setLoading(false);
       }
     }
-    loadData();
+    load();
   }, [user]);
 
-  function showToast(message: string) {
-    setToast({ message, visible: true });
-    setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2500);
+  // ── Toast ─────────────────────────────────────────────────────────────────
+
+  function showToast(msg: string) {
+    setToastMessage(msg);
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 2500);
   }
+
+  // ── Sign out ──────────────────────────────────────────────────────────────
 
   async function handleSignOut() {
     await signOut(auth);
     router.push("/");
   }
+
+  // ── Loading ───────────────────────────────────────────────────────────────
 
   if (user === "loading" || loading) {
     return (
@@ -178,6 +170,8 @@ export default function ProfilPage() {
       </div>
     );
   }
+
+  // ── Not logged in ─────────────────────────────────────────────────────────
 
   if (!user) {
     return (
@@ -198,32 +192,40 @@ export default function ProfilPage() {
   }
 
   const u = user as User;
-
   const initials = u.displayName
     ? u.displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : u.email?.[0]?.toUpperCase() ?? "?";
 
   const memberSince = styleProfile?.createdAt
     ? styleProfile.createdAt.toDate().toLocaleDateString("sv-SE", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
+        year: "numeric", month: "long", day: "numeric",
       })
     : null;
 
-  // Sustainability — counted from wishlist second-hand items
+  // Sustainability
   const secondHandCount = wishlist.filter((w) => w.isSecondHand).length;
-  const co2Saved = secondHandCount * 5;        // kg per plagg
-  const waterSaved = secondHandCount * 2000;   // liter per plagg
-  const kmEquivalent = Math.round((co2Saved * 1000) / 130); // ~130g CO₂/km
+  const co2Saved = secondHandCount * 5;
+  const kmEquivalent = Math.round((co2Saved * 1000) / 130);
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-cream px-6 py-12">
-      <Toast message={toast.message} visible={toast.visible} />
+
+      {/* Toast */}
+      <div
+        className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+          toastVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
+      >
+        <div className="bg-charcoal text-cream text-xs tracking-[0.15em] uppercase px-6 py-3 shadow-lg">
+          {toastMessage}
+        </div>
+      </div>
 
       <div className="max-w-3xl mx-auto">
 
-        {/* ── Rubrik ─────────────────────────────────────────────────────── */}
+        {/* ── 1. RUBRIK ──────────────────────────────────────────────────── */}
         <div className="flex flex-col items-center text-center mb-10">
           <div className="w-px h-10 bg-taupe/40 mb-6" />
           <p className="text-[10px] tracking-[0.3em] text-taupe/60 uppercase mb-4">The Archive</p>
@@ -231,7 +233,7 @@ export default function ProfilPage() {
           <div className="w-16 h-px bg-taupe/40 mt-6" />
         </div>
 
-        {/* ── Användarinfo ───────────────────────────────────────────────── */}
+        {/* ── 1. ANVÄNDARINFO ────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-2">
 
           {/* Avatar */}
@@ -249,7 +251,7 @@ export default function ProfilPage() {
             )}
           </div>
 
-          {/* Namn + e-post + datum */}
+          {/* Namn / e-post / datum */}
           <div className="flex flex-col gap-1 sm:pt-2 text-center sm:text-left flex-1">
             <h2 className="font-serif text-3xl text-charcoal tracking-tight">
               {u.displayName ?? "Okänt namn"}
@@ -279,10 +281,19 @@ export default function ProfilPage() {
           </div>
         </div>
 
-        {/* ── Stilprofil ─────────────────────────────────────────────────── */}
+        {/* ── 2. STATISTIK ───────────────────────────────────────────────── */}
+        <SectionDivider title="Statistik" />
+
+        <div className="grid grid-cols-3 gap-3">
+          <StatCard value={String(wardrobeCount)} label="Plagg i garderoben" />
+          <StatCard value={String(outfitCount)} label="Sparade outfits" />
+          <StatCard value={String(wishlist.length)} label="Wishlist-plagg" />
+        </div>
+
+        {/* ── 3. STILPROFIL ──────────────────────────────────────────────── */}
         <SectionDivider title="Stilprofil" />
 
-        {!styleProfile ? (
+        {!styleProfile || (!styleProfile.styleCategories && !styleProfile.colorPreferences) ? (
           <div className="flex flex-col items-center py-12 gap-4 text-center">
             <p className="text-sm text-charcoal/40 tracking-wide">
               Du har inte skapat en stilprofil ännu.
@@ -297,24 +308,19 @@ export default function ProfilPage() {
         ) : (
           <div className="flex flex-col gap-6">
 
-            {/* Shoppingläge + kön + prisklass */}
-            <div className="flex flex-wrap gap-2 items-center">
-              {styleProfile.shoppingMode && (
+            {/* Shoppingläge-tagg */}
+            {styleProfile.shoppingMode && (
+              <div className="flex flex-wrap gap-2">
                 <span className="px-3 py-1.5 border border-taupe text-taupe text-xs tracking-[0.15em] uppercase">
                   {SHOPPING_MODE_LABEL[styleProfile.shoppingMode] ?? styleProfile.shoppingMode}
                 </span>
-              )}
-              {styleProfile.gender && (
-                <span className="px-3 py-1.5 border border-charcoal/20 text-charcoal text-xs tracking-[0.12em] uppercase">
-                  {GENDER_LABEL[styleProfile.gender] ?? styleProfile.gender}
-                </span>
-              )}
-              {styleProfile.priceRange && (
-                <span className="px-3 py-1.5 border border-charcoal/10 text-charcoal/50 text-xs tracking-[0.12em] uppercase">
-                  {PRICE_RANGE_LABEL[styleProfile.priceRange] ?? styleProfile.priceRange}
-                </span>
-              )}
-            </div>
+                {styleProfile.priceRange && (
+                  <span className="px-3 py-1.5 border border-charcoal/10 text-charcoal/50 text-xs tracking-[0.12em] uppercase">
+                    {PRICE_RANGE_LABEL[styleProfile.priceRange] ?? styleProfile.priceRange}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Stilkategorier */}
             {styleProfile.styleCategories && styleProfile.styleCategories.length > 0 && (
@@ -355,6 +361,16 @@ export default function ProfilPage() {
               </div>
             )}
 
+            {/* Prisklass (egen rad om inte ovan) */}
+            {!styleProfile.shoppingMode && styleProfile.priceRange && (
+              <div className="flex flex-col gap-1">
+                <p className="text-[10px] tracking-[0.2em] text-charcoal/40 uppercase">Prisklass</p>
+                <p className="text-sm text-charcoal">
+                  {PRICE_RANGE_LABEL[styleProfile.priceRange] ?? styleProfile.priceRange}
+                </p>
+              </div>
+            )}
+
             {/* Stilbeskrivning */}
             {styleProfile.styleDescription && (
               <div className="flex flex-col gap-2">
@@ -374,95 +390,38 @@ export default function ProfilPage() {
           </div>
         )}
 
-        {/* ── Garderob ───────────────────────────────────────────────────── */}
-        <SectionDivider title="Min garderob" />
-
-        {wardrobe.length === 0 ? (
-          <div className="flex flex-col items-center py-12 gap-4 text-center">
-            <p className="text-sm text-charcoal/40 tracking-wide">
-              Inga plagg uppladdade ännu.
-            </p>
-            <Link
-              href="/onboarding"
-              className="px-8 py-3 border border-charcoal/20 text-charcoal text-xs tracking-[0.15em] uppercase hover:border-taupe hover:text-taupe transition-colors duration-300"
-            >
-              Lägg till plagg
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {wardrobe.map((item) => (
-                <div key={item.id} className="group flex flex-col">
-                  <div className="relative aspect-[3/4] overflow-hidden bg-charcoal/5">
-                    <img
-                      src={item.imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"}
-                      alt={CATEGORY_LABEL[item.category] ?? item.category}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src =
-                          "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive";
-                      }}
-                    />
-                    <div className="absolute bottom-0 left-0 right-0 bg-charcoal/80 px-2 py-1.5">
-                      <span className="text-[9px] tracking-wide text-cream/90 uppercase">
-                        {CATEGORY_LABEL[item.category] ?? item.category}
-                      </span>
-                    </div>
-                  </div>
-
-                  {item.analyzedStyle && item.analyzedStyle.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {item.analyzedStyle.slice(0, 2).map((s) => (
-                        <span
-                          key={s}
-                          className="text-[9px] px-1.5 py-0.5 bg-taupe/10 text-taupe/80 tracking-wide"
-                        >
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <Link
-              href="/onboarding"
-              className="inline-flex self-start px-6 py-2.5 border border-charcoal/20 text-charcoal text-xs tracking-[0.15em] uppercase hover:border-taupe hover:text-taupe transition-colors duration-300"
-            >
-              Lägg till fler plagg
-            </Link>
-          </div>
-        )}
-
-        {/* ── Hållbarhetsstatistik ────────────────────────────────────────── */}
+        {/* ── 4. HÅLLBARHETSMÄTARE ───────────────────────────────────────── */}
         <SectionDivider title="Hållbarhetsstatistik" />
 
         {secondHandCount === 0 ? (
-          <div className="flex flex-col items-center py-12 text-center">
+          <div className="flex flex-col items-center py-12 text-center gap-3">
             <p className="text-sm text-charcoal/40 tracking-wide max-w-xs">
               Spara second hand-plagg i din wishlist för att se ditt miljöavtryck.
             </p>
-            <div className="w-px h-8 bg-taupe/30 mt-8" />
+            <Link
+              href="/feed"
+              className="mt-2 text-xs tracking-[0.15em] text-taupe uppercase hover:text-taupe-dark transition-colors"
+            >
+              Utforska feeden →
+            </Link>
           </div>
         ) : (
           <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-3 gap-px bg-charcoal/10 border border-charcoal/10">
-              {[
-                { label: "Second hand-köp", value: String(secondHandCount) },
-                { label: "CO₂-besparing", value: `${co2Saved} kg` },
-                { label: "Vattenbesparing", value: `${waterSaved.toLocaleString("sv-SE")} L` },
-              ].map(({ label, value }) => (
-                <div key={label} className="bg-cream px-4 py-6 text-center">
-                  <p className="font-serif text-3xl text-charcoal mb-1">{value}</p>
-                  <p className="text-[10px] tracking-[0.12em] text-charcoal/40 uppercase leading-snug">
-                    {label}
-                  </p>
-                </div>
-              ))}
+
+            {/* Huvudsiffra */}
+            <div className="border border-charcoal/10 px-6 py-8 text-center">
+              <p className="text-[10px] tracking-[0.25em] text-taupe/70 uppercase mb-3">
+                Din CO₂-besparing
+              </p>
+              <p className="font-serif text-6xl text-charcoal leading-none mb-2">
+                {co2Saved} <span className="text-3xl text-charcoal/50">kg</span>
+              </p>
+              <p className="text-sm text-charcoal/50 tracking-wide mt-1">
+                Du har sparat {co2Saved} kg CO₂
+              </p>
             </div>
 
+            {/* Jämförelse */}
             {kmEquivalent > 0 && (
               <div className="border border-taupe/30 bg-taupe/5 px-6 py-5 text-center">
                 <p className="text-[10px] tracking-[0.2em] text-taupe/70 uppercase mb-2">
@@ -472,17 +431,34 @@ export default function ProfilPage() {
                   att inte köra bil i {kmEquivalent.toLocaleString("sv-SE")} km
                 </p>
                 <p className="text-[10px] text-charcoal/40 mt-2 tracking-wide">
-                  Baserat på genomsnittliga utsläpp ~130 g CO₂ per km
+                  Baserat på ~130 g CO₂ per km för en genomsnittlig personbil
                 </p>
               </div>
             )}
+
+            {/* Dela-knapp */}
+            <button
+              onClick={() => {
+                const text = `Jag har sparat ${co2Saved} kg CO₂ genom att shoppa second hand på The Archive! Det motsvarar att inte köra bil i ${kmEquivalent} km. ♻️`;
+                if (navigator.share) {
+                  navigator.share({ text });
+                } else {
+                  navigator.clipboard.writeText(text).then(() =>
+                    showToast("Kopierat till urklipp!")
+                  );
+                }
+              }}
+              className="self-center px-8 py-3 border border-charcoal/20 text-charcoal text-xs tracking-[0.15em] uppercase hover:border-taupe hover:text-taupe transition-colors duration-300"
+            >
+              Dela mitt miljöavtryck
+            </button>
           </div>
         )}
 
-        {/* ── Sparade outfits ────────────────────────────────────────────── */}
+        {/* ── 5. SPARADE OUTFITS ─────────────────────────────────────────── */}
         <SectionDivider title="Sparade outfits" />
 
-        {outfits.length === 0 ? (
+        {latestOutfits.length === 0 ? (
           <div className="flex flex-col items-center py-12 gap-4 text-center">
             <p className="text-sm text-charcoal/40 tracking-wide">
               Inga sparade outfits ännu.
@@ -495,10 +471,10 @@ export default function ProfilPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {outfits.map((outfit) => {
-              const outfitItems = Object.values(outfit.items ?? {});
-              const itemNames = outfitItems.map((i) => i.name).filter(Boolean);
+          <div className="flex flex-col gap-4">
+            {latestOutfits.map((outfit) => {
+              const items = Object.values(outfit.items ?? {});
+              const names = items.map((i) => i.name).filter(Boolean);
 
               return (
                 <div
@@ -507,11 +483,11 @@ export default function ProfilPage() {
                 >
                   {/* Miniatyrbilder */}
                   <div className="flex gap-1 flex-shrink-0">
-                    {outfitItems.slice(0, 3).map((item, i) => (
-                      <div key={i} className="w-14 h-20 bg-charcoal/5 overflow-hidden flex-shrink-0">
+                    {items.slice(0, 3).map((item, i) => (
+                      <div key={i} className="w-14 h-20 bg-charcoal/5 overflow-hidden">
                         <img
                           src={item.imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=?"}
-                          alt={item.name}
+                          alt={item.name ?? "Plagg"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src =
@@ -525,16 +501,17 @@ export default function ProfilPage() {
                   {/* Info */}
                   <div className="flex flex-col gap-2 flex-1 min-w-0 justify-between">
                     <div className="flex flex-col gap-0.5">
-                      {itemNames.slice(0, 3).map((name, i) => (
+                      {names.slice(0, 3).map((name, i) => (
                         <p key={i} className="text-xs text-charcoal/70 leading-snug truncate">
                           {name}
                         </p>
                       ))}
                     </div>
 
-                    {outfit.score > 0 && (
+                    {outfit.score != null && outfit.score > 0 && (
                       <span className={`text-[10px] px-2 py-0.5 tracking-wide self-start ${scoreBadgeClass(outfit.score)}`}>
-                        {outfit.score}/100 — {outfit.label}
+                        {outfit.score}/100
+                        {outfit.label ? ` — ${outfit.label}` : ""}
                       </span>
                     )}
 
@@ -548,6 +525,12 @@ export default function ProfilPage() {
                 </div>
               );
             })}
+
+            {outfitCount > 3 && (
+              <p className="text-center text-xs text-charcoal/40 tracking-wide">
+                Visar de senaste 3 av {outfitCount} outfits
+              </p>
+            )}
           </div>
         )}
 
