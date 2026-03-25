@@ -53,8 +53,13 @@ function ProductCard({
   onToggleWishlist: () => void;
 }) {
   return (
-    <article className="group flex flex-col">
-      <div className="relative overflow-hidden bg-charcoal/5 aspect-[3/4]">
+    <article className="group flex flex-col cursor-pointer">
+      <a
+        href={product.link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block relative overflow-hidden bg-charcoal/5 aspect-[3/4]"
+      >
         <img
           src={product.imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"}
           alt={product.name}
@@ -73,13 +78,17 @@ function ProductCard({
         )}
 
         <button
-          onClick={onToggleWishlist}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleWishlist();
+          }}
           aria-label={wishlisted ? "Ta bort från wishlist" : "Lägg till i wishlist"}
           className="absolute top-2.5 right-2.5 w-8 h-8 flex items-center justify-center bg-cream/90 hover:bg-cream transition-colors"
         >
           <HeartIcon filled={wishlisted} />
         </button>
-      </div>
+      </a>
 
       <div className="pt-3 flex flex-col gap-1 flex-1">
         <span className="text-[10px] tracking-[0.2em] text-taupe uppercase">{product.brand}</span>
