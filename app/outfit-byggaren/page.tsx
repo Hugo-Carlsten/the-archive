@@ -300,6 +300,8 @@ export default function OutfitBuilderPage() {
       const p = slots[s.key]!;
       return {
         name: p.name,
+        brand: p.brand ?? "",
+        category: s.key,
         style: Array.isArray(p.style) ? p.style : [],
         colors: Array.isArray(p.colors) ? p.colors : [],
       };

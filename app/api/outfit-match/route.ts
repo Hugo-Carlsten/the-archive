@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 interface GarmentInput {
   name: string;
+  brand?: string;
+  category?: string;
   style: string[];
   colors: string[];
 }
@@ -64,7 +66,9 @@ export async function POST(request: Request) {
   console.log("[outfit-match] Base score:", baseScore);
 
   const itemList = items
-    .map((item, i) => `${i + 1}. ${item.name} (stil: ${(item.style ?? []).join(", ") || "okänd"}, färger: ${(item.colors ?? []).join(", ") || "okänd"})`)
+    .map((item, i) =>
+      `${i + 1}. NAMN: '${item.name}' | KATEGORI: ${item.category || "okänd"} | STIL: ${(item.style ?? []).join(", ") || "okänd"} | FÄRG: ${(item.colors ?? []).join(", ") || "okänd"} | MÄRKE: ${item.brand || "okänt"}`
+    )
     .join("\n");
 
   const prompt = `Du är en expert-stylist. Svara ENDAST med ett JSON-objekt, inga andra ord, ingen förklaring, inga kodblock, ingen markdown.
@@ -80,15 +84,18 @@ BETYGSSKALA:
 - critique: 1–2 meningar på svenska, MAX 25 ord — nämn alltid plaggens faktiska namn och färger, förklara konkret varför outfiten funkar eller inte — FÅR ALDRIG UTELÄMNAS
 - tip: MAX 20 ord på svenska — nämn ett specifikt plagg ur outfiten och vad som ska ändras, aldrig generiska råd — FÅR ALDRIG UTELÄMNAS
 
-REGLER FÖR CRITIQUE OCH TIP:
-- Skriv ALDRIG "saknar en tydlig stil-röd tråd" om alla plagg har samma stil
-- Skriv ALDRIG generiska råd som "byt ett plagg mot något som matchar"
-- Nämn ALLTID minst ett plaggs faktiska namn i critique
-- Nämn ALLTID ett specifikt plagg i tip med konkret åtgärd
-- Vid högt betyg: bekräfta vad som fungerar bra ("Svart hoodie och svarta byxor skapar stark monokromatisk look")
-- Vid lågt betyg: förklara exakt vad som krockar ("De breda cargos krockar med den formella skjortans klassiska stil")
-- Exempel bra critique: "Svart sweatshirt och mörkgrå byxor bildar en sammanhängande monokromatisk Streetwear-look"
-- Exempel bra tip: "Byt ut de vita skorna mot svarta för en mer sammanhängande helhet"
+VIKTIGT — CRITIQUE OCH TIP MÅSTE:
+- Nämna minst ett specifikt plaggets namn eller märke från listan ovan
+- Referera till de faktiska färgerna som finns i outfiten
+- ALDRIG säga "saknar en tydlig stil-röd tråd" om alla plagg delar minst en stil
+- ALDRIG vara generisk som "byt ett plagg mot något som matchar stilen bättre"
+- Vid högt betyg (80+): bekräfta vad som fungerar bra och specifikt varför
+- Vid lågt betyg (under 60): förklara exakt vilket plagg som inte passar och varför
+
+Exempel på bra critique vid 90+: "Klassisk minimalistisk look — kavaj och kostymbyxor i brun skapar perfekt koherens"
+Exempel på bra critique vid 60: "Svart sweatshirt krockar stilmässigt med den formella kavajens klassiska linje"
+Exempel på bra tip vid 90+: "Lägg till ett bälte i samma bruna ton för att fullända looken"
+Exempel på bra tip vid 60: "Byt ut kavajn mot en mörkare bomber för mer sammanhängande streetwear"
 
 ═══ GRUNDPRINCIP ═══
 
@@ -153,7 +160,7 @@ ${itemList}`;
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 2048,
         },
       }),
     }
