@@ -83,10 +83,10 @@ export async function POST(req: NextRequest) {
   // ── Build prompt data ─────────────────────────────────────────────────────
   const shoppingLabel =
     profile.shoppingMode === "second_hand"
-      ? "enbart second hand (visa BARA isSecondHand: true)"
+      ? "Enbart second hand — ranka BARA produkter med isSecondHand: true högst, lägg alla isSecondHand: false sist"
       : profile.shoppingMode === "new"
-      ? "enbart nytt (visa BARA isSecondHand: false)"
-      : "blandat nytt och second hand";
+      ? "Enbart nytt — ranka BARA produkter med isSecondHand: false högst, lägg alla isSecondHand: true sist"
+      : "Blandat — eftersträva ungefär 50/50-fördelning av nytt och second hand i resultatlistan";
 
   const genderLabel =
     profile.gender === "dam"
@@ -96,25 +96,35 @@ export async function POST(req: NextRequest) {
       : "båda könen";
 
   const priceRangeLabel: Record<string, string> = {
-    budget: "budget — under 500 kr (produkter över 500 kr rankas lägst)",
-    mellansegment: "mellansegment — 500–1500 kr (produkter utanför detta spannet rankas lägre)",
-    premium: "premium — 1500–4000 kr (produkter utanför detta spannet rankas lägre)",
-    lyx: "lyx — 4000+ kr (alla prisklasser ok)",
-    spelar_ingen_roll: "spelar ingen roll",
+    budget: "Budget — under 500 kr. Produkter över 500 kr rankas alltid sist oavsett andra faktorer.",
+    mellansegment: "Mellansegment — 500–1500 kr. Produkter utanför detta intervall rankas ned.",
+    premium: "Premium — 1500–4000 kr. Produkter utanför detta intervall rankas ned.",
+    lyx: "Lyx — 4000+ kr. Alla prisklasser är ok.",
+    spelar_ingen_roll: "Spelar ingen roll — ignorera pris i rankingen.",
   };
 
-  // Wardrobe summary per category
+  // Wardrobe counts per category
   const wardrobeCounts: Record<string, number> = {};
   for (const item of wardrobeItems) {
     wardrobeCounts[item.category] = (wardrobeCounts[item.category] ?? 0) + 1;
   }
+
+  // Gap score: 0 items → 3, 1-2 → 2, 3-4 → 1, 5+ → 0
+  const allCategories = ["top", "bottom", "shoes", "outerwear"];
+  const gapScores = Object.fromEntries(
+    allCategories.map((cat) => {
+      const n = wardrobeCounts[cat] ?? 0;
+      const score = n === 0 ? 3 : n <= 2 ? 2 : n <= 4 ? 1 : 0;
+      return [cat, { count: n, gap: score }];
+    })
+  );
+  const underrepresented = allCategories
+    .filter((cat) => gapScores[cat].gap >= 2)
+    .map((cat) => `${cat} (${gapScores[cat].count} st, gap-score ${gapScores[cat].gap})`)
+    .join(", ") || "ingen tydlig lucka";
+
   const wardrobeColors = Array.from(new Set(wardrobeItems.flatMap((w) => w.colors)));
   const wardrobeStyles = Array.from(new Set(wardrobeItems.flatMap((w) => w.analyzedStyle)));
-  const wardrobeSummary = wardrobeItems.length > 0
-    ? `Användaren har: ${Object.entries(wardrobeCounts).map(([cat, n]) => `${n} ${cat}`).join(", ")}. ` +
-      `Färger i garderoben: ${wardrobeColors.join(", ") || "okänt"}. ` +
-      `Stilar i garderoben: ${wardrobeStyles.join(", ") || "okänt"}.`
-    : "Ingen garderob uppladdad.";
 
   const condensedProducts = products.map((p) => ({
     id: p.id,
@@ -127,59 +137,63 @@ export async function POST(req: NextRequest) {
     isSecondHand: p.isSecondHand,
   }));
 
-  const neutralColors = ["svart", "vit", "grå", "beige", "vitt", "grått", "black", "white", "grey", "gray"];
+  const prompt = `Du är en personlig AI-stylist. Ranka ALLA produkter nedan från mest till minst relevant för denna användare.
 
-  const prompt = `Du är en personlig AI-stylist. Din uppgift är att ranka ALLA produkter nedan från mest till minst relevant för denna specifika användare.
+═══ ANVÄNDARKONTEXT ═══
+Stilbeskrivning (viktigaste signalen): "${profile.styleDescription ?? ""}"
+Stilkategorier: ${(profile.styleCategories ?? []).join(", ") || "ej angivet"}
+Favoritfärger: ${(profile.colorPreferences ?? []).join(", ") || "ej angivet"}
+Missgynnade färger: ${(profile.colorDislikes ?? []).join(", ") || "inga"}
+Neutrala färger — straffas aldrig: svart, vit, grå, beige, navy
+Prisklass: ${priceRangeLabel[profile.priceRange] ?? "Spelar ingen roll."}
+Shoppingläge: ${shoppingLabel}
+Kön: ${genderLabel}
 
-═══ ANVÄNDARENS STILPROFIL ═══
-- Stilkategorier: ${(profile.styleCategories ?? []).join(", ") || "ej angivet"}
-- Favoritfärger: ${(profile.colorPreferences ?? []).join(", ") || "ej angivet"}
-- Färger att undvika: ${(profile.colorDislikes ?? []).join(", ") || "inga"}
-- Neutrala färger (alltid ok): ${neutralColors.join(", ")}
-- Prisklass: ${priceRangeLabel[profile.priceRange] ?? "spelar ingen roll"}
-- Shoppingläge: ${shoppingLabel}
-- Stilbeskrivning: "${profile.styleDescription ?? ""}"
-- Kön: ${genderLabel}
+═══ GARDEROBSANALYS ═══
+Toppar: ${wardrobeCounts["top"] ?? 0} st
+Byxor: ${wardrobeCounts["bottom"] ?? 0} st
+Skor: ${wardrobeCounts["shoes"] ?? 0} st
+Jackor/ytterkläder: ${wardrobeCounts["outerwear"] ?? 0} st
+Saknade/underrepresenterade kategorier: ${underrepresented}
+Befintliga färger i garderoben: ${wardrobeColors.join(", ") || "okänt"}
+Befintliga stilar i garderoben: ${wardrobeStyles.join(", ") || "okänt"}
 
-═══ GARDEROB (${wardrobeItems.length} plagg) ═══
-${wardrobeSummary}
+═══ RANKNINGSINSTRUKTIONER (exakt prioritetsordning) ═══
 
-═══ RANKNINGSREGLER (i prioritetsordning) ═══
-1. STIL-MATCHNING (högst prioritet)
-   → Produkter vars style-array innehåller något från [${(profile.styleCategories ?? []).join(", ")}] rankas HÖGST
-   → Produkter med helt olik stil rankas lägre
+1. STILBESKRIVNING — absolut högst prioritet
+   Analysera vad användaren skrivit ovan. Om de nämner specifika plaggtyper ("jacka", "skjorta"), färger ("vita", "svarta") eller tillfällen ("jobb", "vardags") — lyft produkter som matchar detta HÖGST i listan. Väger tyngre än allt annat.
 
-2. GARDEROBET LUCKOR — fyll vad som saknas
-   → Räkna plagg per kategori ovan. Kategorier med FÅ eller INGA plagg ska prioriteras.
-   → Exempel: om 0 skor i garderoben → ranka skor högt oavsett annat
+2. STIL-MATCHNING
+   Produkter vars style-array innehåller något från [${(profile.styleCategories ?? []).join(", ")}] ska rankas högt. Produkter som inte matchar någon av användarens stilar rankas alltid lägre.
 
-3. PRISNIVÅ
-   → Produkter inom användarens prisklass rankas upp
-   → Produkter utanför prisklass rankas ned (lägg dem sist)
+3. GARDEROBSBALANS — mjuk prioritering
+   Underrepresenterade kategorier: ${underrepresented}
+   Ge en lätt bonus till produkter i dessa kategorier, men låt stil och stilbeskrivning väga tyngre. En sko i fel stil ska inte hamna överst bara för att det saknas skor.
 
-4. FÄRGKOMPATIBILITET
-   → Produkter i favoritfärger: ranka upp
-   → Produkter i missgynnade färger: ranka ned
-   → Neutrala färger (svart, vit, grå, beige): alltid kompatibla, ranka normalt
+4. PRISNIVÅ
+   ${priceRangeLabel[profile.priceRange] ?? "Ignorera pris."}
 
-5. VARIATION — blanda i resultatlistan
-   → Samma märke max 2 gånger i rad
-   → Varva kategorier (top, bottom, shoes, outerwear) så de blandas
-   → Om shoppingläge är "blandat": varva nytt och second hand
+5. FÄRGKOMPATIBILITET
+   Ranka upp: produkter i [${(profile.colorPreferences ?? []).join(", ") || "inga angivna"}]
+   Ranka ned: produkter i [${(profile.colorDislikes ?? []).join(", ") || "inga angivna"}]
+   Neutrala (svart, vit, grå, beige, navy) — alltid ok
 
-6. UNDVIK DUBBLETTER MED GARDEROBEN
-   → Om användaren redan har plagg med samma kategori + färg + stil → ranka ned
+6. SHOPPINGLÄGE
+   ${shoppingLabel}
+
+7. VARIATION — eftersträva i den färdiga listan
+   - Samma märke max 2 gånger i rad
+   - Varva kategorier: top → bottom → shoes → outerwear → top → bottom ...
+   - Undvik att samma kategori upprepas mer än 2 gånger i rad
+
+8. GARDEROBEN DUBBLETTER — lägst prioritet
+   Om användaren redan har plagg med samma kategori + färg + stil som en produkt → ranka den lägst
 
 ═══ PRODUKTLISTA (${condensedProducts.length} produkter) ═══
 ${JSON.stringify(condensedProducts)}
 
-═══ KRITISKA KRAV ═══
-- Du MÅSTE returnera ALLA ${condensedProducts.length} produkt-ID:n — inget får utelämnas
-- Varje ID får förekomma exakt EN gång
-- Produkter som passar dåligt placeras SIST — men måste vara med
-- Returnera ENDAST giltig JSON, inga förklaringar eller kommentarer
-
-Returnera EXAKT detta format med alla ${condensedProducts.length} ID:n:
+═══ KRAV ═══
+Ranka ALLA ${condensedProducts.length} produkter. Inget ID får utelämnas. Varje ID exakt en gång. Svara ENDAST med giltig JSON:
 {"ranked": ["id1", "id2", ...]}`;
 
   console.log("[get-recommendations] Ranking", products.length, "products for uid:", uid,
