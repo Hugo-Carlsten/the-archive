@@ -6,6 +6,41 @@ interface GarmentInput {
   colors: string[];
 }
 
+function calculateBaseScore(items: GarmentInput[]): number {
+  if (items.length === 0) return 50;
+
+  const allStyles = items.flatMap(item => item.style || []);
+  const allColors = items.flatMap(item => item.colors || []);
+
+  // Stilmatchning
+  const styleCounts: Record<string, number> = {};
+  allStyles.forEach(s => { styleCounts[s] = (styleCounts[s] || 0) + 1; });
+  const maxStyleCount = Math.max(...Object.values(styleCounts));
+  const styleScore = maxStyleCount / items.length;
+
+  // Neutrala färger
+  const neutralColors = ["svart", "vit", "beige", "grå", "navy", "marinblå", "brun", "off-white", "cremevit", "sand", "khaki", "mörkblå", "mörkgrå"];
+  const neutralCount = allColors.filter(c =>
+    neutralColors.some(n => c.toLowerCase().includes(n))
+  ).length;
+  const colorScore = neutralCount / Math.max(allColors.length, 1);
+
+  let base = 50;
+
+  if (styleScore >= 1.0) base += 25;
+  else if (styleScore >= 0.75) base += 15;
+  else if (styleScore >= 0.5) base += 5;
+  else base -= 10;
+
+  if (colorScore >= 0.75) base += 15;
+  else if (colorScore >= 0.5) base += 8;
+
+  if (items.length >= 3) base += 5;
+  if (items.length >= 4) base += 5;
+
+  return Math.min(Math.max(base, 30), 95);
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -24,6 +59,9 @@ export async function POST(request: Request) {
   }
 
   console.log("[outfit-match] Items:", items.map((i) => i.name));
+
+  const baseScore = calculateBaseScore(items);
+  console.log("[outfit-match] Base score:", baseScore);
 
   const itemList = items
     .map((item, i) => `${i + 1}. ${item.name} (stil: ${(item.style ?? []).join(", ") || "okänd"}, färger: ${(item.colors ?? []).join(", ") || "okänd"})`)
@@ -89,6 +127,10 @@ GE lågt betyg ENDAST vid tydliga misstag:
 - Betyg under 50 kräver ett tydligt, specifikt misstag som du MÅSTE nämna i critique
 - Nämn trenden i tipset om outfiten följer en (t.ex. "Clean minimalism — tidlöst och välbalanserat")
 
+═══ BETYGSINTERVALL ═══
+
+VIKTIGT: Baserat på stilanalys är minimibetyget för denna outfit ${baseScore}. Du får INTE ge ett lägre betyg än ${baseScore - 5}. Om du ser ytterligare positiva faktorer (färgkontrast, trendmatchning, proportioner) ska du höja betyget över ${baseScore}. Ge ett betyg mellan ${baseScore - 5} och ${Math.min(baseScore + 15, 100)}.
+
 Bedöm denna outfit:
 ${itemList}`;
 
@@ -130,7 +172,7 @@ ${itemList}`;
   if (!raw) {
     console.error("[outfit-match] Empty raw, finishReason:", data.candidates?.[0]?.finishReason);
     // Return a fallback instead of 422 so the frontend can still show something
-    return NextResponse.json({ score: 50, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
+    return NextResponse.json({ score: baseScore, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
   }
 
   // Normalize: strip markdown fences, replace curly/smart quotes with straight quotes
@@ -160,16 +202,18 @@ ${itemList}`;
         parsed = JSON.parse(jsonMatch[0]);
       } catch (err2) {
         console.error("[outfit-match] All parse attempts failed:", err2, "normalized:", normalized);
-        return NextResponse.json({ score: 50, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
+        return NextResponse.json({ score: baseScore, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
       }
     } else {
       console.error("[outfit-match] No JSON object found in response:", normalized);
-      return NextResponse.json({ score: 50, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
+      return NextResponse.json({ score: baseScore, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
     }
   }
 
+  const floor = Math.max(baseScore - 5, 1);
+  const ceiling = Math.min(baseScore + 15, 100);
   const result = {
-    score: Math.min(100, Math.max(1, Number(parsed.score) || 50)),
+    score: Math.min(ceiling, Math.max(floor, Number(parsed.score) || baseScore)),
     label: String(parsed.label ?? "Godkänd"),
     critique: String(parsed.critique ?? parsed.comment ?? parsed.kommentar ?? ""),
     tip: String(parsed.tip ?? ""),
