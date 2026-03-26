@@ -61,38 +61,64 @@ function scoreBadgeClass(score: number) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+function StyleTag({ tag, highlight }: { tag: string; highlight: boolean }) {
+  return (
+    <span
+      className={`inline-block px-1.5 py-0.5 text-[9px] tracking-[0.12em] uppercase border leading-none ${
+        highlight
+          ? "bg-taupe/15 border-taupe text-taupe"
+          : "bg-cream border-border text-charcoal/40"
+      }`}
+    >
+      {tag}
+    </span>
+  );
+}
+
 function SlotCard({
   slot,
   product,
   onRemove,
+  sharedStyles,
 }: {
   slot: { key: SlotKey; emoji: string; label: string };
   product: FeedProduct | null;
   onRemove: () => void;
+  sharedStyles: Set<string>;
 }) {
   if (product) {
+    const tags = Array.isArray(product.style) ? product.style : [];
     return (
-      <div className="relative aspect-[3/4] overflow-hidden border border-charcoal bg-charcoal/5">
-        <img
-          src={product.imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"}
-          alt={product.name}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src =
-              "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive";
-          }}
-        />
-        <button
-          onClick={onRemove}
-          aria-label="Ta bort"
-          className="absolute top-2 right-2 w-6 h-6 bg-charcoal text-cream text-sm flex items-center justify-center hover:bg-taupe transition-colors"
-        >
-          ×
-        </button>
-        <div className="absolute bottom-0 left-0 right-0 bg-charcoal/80 px-2 py-1.5">
-          <p className="text-[10px] tracking-wide text-cream/90 truncate">{product.name}</p>
-          <p className="text-[10px] text-taupe/80">{product.price} kr</p>
+      <div className="flex flex-col border border-charcoal bg-charcoal/5">
+        <div className="relative aspect-[3/4] overflow-hidden">
+          <img
+            src={product.imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"}
+            alt={product.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src =
+                "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive";
+            }}
+          />
+          <button
+            onClick={onRemove}
+            aria-label="Ta bort"
+            className="absolute top-2 right-2 w-6 h-6 bg-charcoal text-cream text-sm flex items-center justify-center hover:bg-taupe transition-colors"
+          >
+            ×
+          </button>
+          <div className="absolute bottom-0 left-0 right-0 bg-charcoal/80 px-2 py-1.5">
+            <p className="text-[10px] tracking-wide text-cream/90 truncate">{product.name}</p>
+            <p className="text-[10px] text-taupe/80">{product.price} kr</p>
+          </div>
         </div>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-1.5 py-1.5 bg-cream">
+            {tags.map((tag) => (
+              <StyleTag key={tag} tag={tag} highlight={sharedStyles.has(tag)} />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -109,11 +135,14 @@ function ProductCard({
   product,
   onAdd,
   isInOutfit,
+  outfitStyles,
 }: {
   product: FeedProduct;
   onAdd: () => void;
   isInOutfit: boolean;
+  outfitStyles: Set<string>;
 }) {
+  const tags = Array.isArray(product.style) ? product.style : [];
   return (
     <button
       onClick={onAdd}
@@ -141,9 +170,16 @@ function ProductCard({
           </div>
         )}
       </div>
-      <div className="p-2 flex flex-col gap-0.5">
+      <div className="p-2 flex flex-col gap-1">
         <p className="text-[10px] tracking-[0.15em] text-taupe uppercase">{product.brand}</p>
         <p className="text-xs text-charcoal leading-snug line-clamp-2">{product.name}</p>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {tags.map((tag) => (
+              <StyleTag key={tag} tag={tag} highlight={outfitStyles.has(tag)} />
+            ))}
+          </div>
+        )}
         <p className="text-xs font-medium text-charcoal mt-0.5">{product.price} kr</p>
       </div>
     </button>
@@ -335,6 +371,23 @@ export default function OutfitBuilderPage() {
       .map((p) => p!.id)
   );
 
+  // Styles appearing in 2+ filled slots → highlighted as shared
+  const styleCount: Record<string, number> = {};
+  SLOTS.forEach((s) => {
+    const p = slots[s.key];
+    if (p && Array.isArray(p.style)) {
+      p.style.forEach((tag) => { styleCount[tag] = (styleCount[tag] ?? 0) + 1; });
+    }
+  });
+  const sharedStyles = new Set(
+    Object.entries(styleCount).filter(([, n]) => n >= 2).map(([tag]) => tag)
+  );
+
+  // All styles in any filled slot → highlight matches in picker
+  const outfitStyles = new Set(
+    SLOTS.flatMap((s) => (slots[s.key] && Array.isArray(slots[s.key]!.style)) ? slots[s.key]!.style : [])
+  );
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -367,6 +420,7 @@ export default function OutfitBuilderPage() {
                   slot={slot}
                   product={slots[slot.key]}
                   onRemove={() => removeSlot(slot.key)}
+                  sharedStyles={sharedStyles}
                 />
               ))}
             </div>
@@ -523,6 +577,7 @@ export default function OutfitBuilderPage() {
                     product={product}
                     onAdd={() => addProduct(product)}
                     isInOutfit={selectedIds.has(product.id)}
+                    outfitStyles={outfitStyles}
                   />
                 ))}
               </div>
