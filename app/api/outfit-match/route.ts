@@ -123,7 +123,7 @@ ${itemList}`;
   if (!raw) {
     console.error("[outfit-match] Empty raw, finishReason:", data.candidates?.[0]?.finishReason);
     // Return a fallback instead of 422 so the frontend can still show something
-    return NextResponse.json({ score: 50, label: "Godkänd", tip: "" });
+    return NextResponse.json({ score: 50, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
   }
 
   // Normalize: strip markdown fences, replace curly/smart quotes with straight quotes
@@ -153,11 +153,11 @@ ${itemList}`;
         parsed = JSON.parse(jsonMatch[0]);
       } catch (err2) {
         console.error("[outfit-match] All parse attempts failed:", err2, "normalized:", normalized);
-        return NextResponse.json({ score: 50, label: "Godkänd", tip: "" });
+        return NextResponse.json({ score: 50, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
       }
     } else {
       console.error("[outfit-match] No JSON object found in response:", normalized);
-      return NextResponse.json({ score: 50, label: "Godkänd", tip: "" });
+      return NextResponse.json({ score: 50, label: "Godkänd", critique: "Outfiten saknar en tydlig stil-röd tråd.", tip: "Prova att byta ett plagg mot något som matchar stilen bättre." });
     }
   }
 

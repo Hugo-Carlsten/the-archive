@@ -21,6 +21,13 @@ interface OutfitSlots {
   outerwear: FeedProduct | null;
 }
 
+interface MatchResult {
+  score: number;
+  label: string;
+  critique: string;
+  tip: string;
+}
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -199,10 +206,7 @@ export default function OutfitBuilderPage() {
     outerwear: null,
   });
   const [activeFilter, setActiveFilter] = useState("Alla");
-  const [matchScore, setMatchScore] = useState(0);
-  const [matchLabel, setMatchLabel] = useState("");
-  const [matchCritique, setMatchCritique] = useState("");
-  const [matchTip, setMatchTip] = useState("");
+  const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [loadingMatch, setLoadingMatch] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -233,10 +237,7 @@ export default function OutfitBuilderPage() {
     const currentFilled = SLOTS.filter((s) => slots[s.key] !== null);
 
     if (currentFilled.length < 2) {
-      setMatchScore(0);
-      setMatchLabel("");
-      setMatchCritique("");
-      setMatchTip("");
+      setMatchResult(null);
       return;
     }
 
@@ -261,28 +262,19 @@ export default function OutfitBuilderPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items: selectedItems }),
         });
-        const text = await res.text();
-        console.log("[outfit-match] Raw response:", text);
-        const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
-        const start = cleaned.indexOf("{");
-        const end = cleaned.lastIndexOf("}");
-        const jsonStr = cleaned.slice(start, end + 1);
-        const data = JSON.parse(jsonStr);
-        console.log("[outfit-match] Parsed API response:", data);
+        const data = await res.json();
+        console.log("Outfit match response:", data);
         if (!cancelled) {
-          setMatchScore(data.score ?? 0);
-          setMatchLabel(data.label ?? "Betyg");
-          setMatchCritique(data.critique ?? "");
-          setMatchTip(data.tip ?? "");
+          setMatchResult({
+            score: Number(data.score) || 0,
+            label: String(data.label ?? ""),
+            critique: String(data.critique ?? ""),
+            tip: String(data.tip ?? ""),
+          });
         }
       } catch (err) {
-        console.error("[outfit-match] Parse error:", err);
-        if (!cancelled) {
-          setMatchScore(0);
-          setMatchLabel("Kunde inte beräkna");
-          setMatchCritique("");
-          setMatchTip("");
-        }
+        console.error("[outfit-match] Fel:", err);
+        if (!cancelled) setMatchResult(null);
       } finally {
         if (!cancelled) setLoadingMatch(false);
       }
@@ -323,15 +315,12 @@ export default function OutfitBuilderPage() {
 
   function clearOutfit() {
     setSlots({ top: null, bottom: null, shoes: null, outerwear: null });
-    setMatchScore(0);
-    setMatchLabel("");
-    setMatchCritique("");
-    setMatchTip("");
+    setMatchResult(null);
     setSaved(false);
   }
 
   async function saveOutfit() {
-    if (!user || user === "loading" || !matchScore) return;
+    if (!user || user === "loading" || !matchResult?.score) return;
     setSaving(true);
     try {
       const uid = (user as User).uid;
@@ -346,8 +335,8 @@ export default function OutfitBuilderPage() {
             price: slots[s.key]!.price,
           }])
         ),
-        score: matchScore,
-        label: matchLabel,
+        score: matchResult.score,
+        label: matchResult.label,
         savedAt: Timestamp.now(),
       });
       setSaved(true);
@@ -481,19 +470,56 @@ export default function OutfitBuilderPage() {
                     </svg>
                     <span className="text-xs text-charcoal/40">Analyserar outfit...</span>
                   </div>
-                ) : matchScore > 0 ? (
+                ) : matchResult && matchResult.score > 0 ? (
                   <>
+                    {/* Score + label */}
                     <div className="flex items-end gap-3">
-                      <span className={`font-serif text-5xl leading-none ${scoreTextColor(matchScore)}`}>
-                        {matchScore}
+                      <span className={`font-serif text-5xl leading-none ${scoreTextColor(matchResult.score)}`}>
+                        {matchResult.score}
                       </span>
                       <span className="text-charcoal/30 text-sm mb-1">/100</span>
-                      {matchLabel ? (
-                        <span className={`ml-auto text-xs px-2.5 py-1 ${scoreBadgeClass(matchScore)}`}>
-                          {matchLabel}
+                      {matchResult.label ? (
+                        <span className={`ml-auto text-xs px-2.5 py-1 ${scoreBadgeClass(matchResult.score)}`}>
+                          {matchResult.label}
                         </span>
                       ) : null}
                     </div>
+
+                    {/* Analys */}
+                    {matchResult.critique ? (
+                      <div className="flex flex-col gap-1">
+                        <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>
+                          Analys
+                        </span>
+                        <p
+                          style={{
+                            fontSize: 13,
+                            fontStyle: "italic",
+                            lineHeight: 1.55,
+                            color:
+                              matchResult.score >= 80
+                                ? "#4a7c59"
+                                : matchResult.score < 60
+                                ? "#b94040"
+                                : "#666666",
+                          }}
+                        >
+                          {matchResult.critique}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {/* Tips */}
+                    {matchResult.tip ? (
+                      <div className="flex flex-col gap-1">
+                        <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>
+                          Tips
+                        </span>
+                        <p style={{ fontSize: 13, lineHeight: 1.55, color: "#B5956A" }}>
+                          {matchResult.tip}
+                        </p>
+                      </div>
+                    ) : null}
 
                     {/* Save button */}
                     {user && user !== "loading" ? (
@@ -513,40 +539,6 @@ export default function OutfitBuilderPage() {
                         Logga in för att spara outfits
                       </p>
                     )}
-
-                    {/* Critique */}
-                    {matchCritique ? (
-                      <div className="flex flex-col gap-1 pt-1 border-t border-charcoal/8">
-                        <p className="text-[9px] tracking-[0.18em] uppercase text-charcoal/30">Analys</p>
-                        <p
-                          className="leading-relaxed italic"
-                          style={{
-                            fontSize: 13,
-                            color:
-                              matchScore >= 80
-                                ? "#4a7c59"
-                                : matchScore < 60
-                                ? "#b94040"
-                                : "#666666",
-                          }}
-                        >
-                          {matchCritique}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {/* Tip */}
-                    {matchTip ? (
-                      <div className="flex flex-col gap-1">
-                        <p className="text-[9px] tracking-[0.18em] uppercase text-charcoal/30">Tips</p>
-                        <p
-                          className="leading-relaxed"
-                          style={{ fontSize: 13, color: "#B5956A" }}
-                        >
-                          {matchTip}
-                        </p>
-                      </div>
-                    ) : null}
                   </>
                 ) : null}
               </div>
