@@ -68,6 +68,57 @@ function scoreBadgeClass(score: number) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+const COLOR_MAP: Record<string, string> = {
+  svart: "#2C2C2C",
+  vitt: "#F5F0E8",
+  vit: "#F5F0E8",
+  beige: "#C8A882",
+  sand: "#C8A882",
+  grå: "#9E9E9E",
+  gray: "#9E9E9E",
+  navy: "#1C2B4A",
+  marinblå: "#1C2B4A",
+  mörkblå: "#1C2B4A",
+  brun: "#6B4226",
+  grön: "#4A5240",
+  olivgrön: "#4A5240",
+  olive: "#4A5240",
+  khaki: "#8B7D5A",
+  "off-white": "#F0EBE0",
+  cremevit: "#F0EBE0",
+};
+
+function colorDotBg(colorName: string): string {
+  const key = colorName.toLowerCase().trim();
+  for (const [k, v] of Object.entries(COLOR_MAP)) {
+    if (key.includes(k)) return v;
+  }
+  return "#B5956A";
+}
+
+function ColorDots({ colors }: { colors: string[] }) {
+  const visible = colors.filter(Boolean);
+  if (visible.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+      {visible.map((c) => (
+        <div key={c} className="flex items-center gap-1">
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{
+              backgroundColor: colorDotBg(c),
+              border: colorDotBg(c) === "#F5F0E8" || colorDotBg(c) === "#F0EBE0"
+                ? "1px solid #D0C9BE"
+                : undefined,
+            }}
+          />
+          <span style={{ fontSize: 10, color: "#9E9090", textTransform: "capitalize" }}>{c}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StyleTag({ tag, highlight }: { tag: string; highlight: boolean }) {
   return (
     <span
@@ -119,13 +170,16 @@ function SlotCard({
             <p className="text-[10px] text-taupe/80">{product.price} kr</p>
           </div>
         </div>
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 px-1.5 py-1.5 bg-cream">
-            {tags.map((tag) => (
-              <StyleTag key={tag} tag={tag} highlight={sharedStyles.has(tag)} />
-            ))}
-          </div>
-        )}
+        <div className="flex flex-col gap-1 px-1.5 py-1.5 bg-cream">
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {tags.map((tag) => (
+                <StyleTag key={tag} tag={tag} highlight={sharedStyles.has(tag)} />
+              ))}
+            </div>
+          )}
+          <ColorDots colors={Array.isArray(product.colors) ? product.colors : []} />
+        </div>
       </div>
     );
   }
@@ -187,6 +241,7 @@ function ProductCard({
             ))}
           </div>
         )}
+        <ColorDots colors={Array.isArray(product.colors) ? product.colors : []} />
         <p className="text-xs font-medium text-charcoal mt-0.5">{product.price} kr</p>
       </div>
     </button>

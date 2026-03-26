@@ -77,8 +77,18 @@ Exakt detta format:
 BETYGSSKALA:
 - score: heltal mellan 1 och 100
 - label: exakt ett av: "Perfekt match", "Bra kombination", "Godkänd", "Svår kombination"
-- critique: 1–2 meningar på svenska, max 30 ord — förklara VARFÖR outfiten fick sitt betyg, nämn specifika plagg och konkreta styrkor eller brister — FÅR ALDRIG UTELÄMNAS
-- tip: konkret handlingsorienterat förslag på svenska, max 20 ord — vad användaren KAN göra för att lyfta outfiten — FÅR ALDRIG UTELÄMNAS
+- critique: 1–2 meningar på svenska, MAX 25 ord — nämn alltid plaggens faktiska namn och färger, förklara konkret varför outfiten funkar eller inte — FÅR ALDRIG UTELÄMNAS
+- tip: MAX 20 ord på svenska — nämn ett specifikt plagg ur outfiten och vad som ska ändras, aldrig generiska råd — FÅR ALDRIG UTELÄMNAS
+
+REGLER FÖR CRITIQUE OCH TIP:
+- Skriv ALDRIG "saknar en tydlig stil-röd tråd" om alla plagg har samma stil
+- Skriv ALDRIG generiska råd som "byt ett plagg mot något som matchar"
+- Nämn ALLTID minst ett plaggs faktiska namn i critique
+- Nämn ALLTID ett specifikt plagg i tip med konkret åtgärd
+- Vid högt betyg: bekräfta vad som fungerar bra ("Svart hoodie och svarta byxor skapar stark monokromatisk look")
+- Vid lågt betyg: förklara exakt vad som krockar ("De breda cargos krockar med den formella skjortans klassiska stil")
+- Exempel bra critique: "Svart sweatshirt och mörkgrå byxor bildar en sammanhängande monokromatisk Streetwear-look"
+- Exempel bra tip: "Byt ut de vita skorna mot svarta för en mer sammanhängande helhet"
 
 ═══ GRUNDPRINCIP ═══
 
