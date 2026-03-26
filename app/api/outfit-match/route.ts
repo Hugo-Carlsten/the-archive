@@ -34,12 +34,13 @@ export async function POST(request: Request) {
 Du MÅSTE inkludera alla tre fält: score, label och tip.
 
 Exakt detta format:
-{"score":85,"label":"Bra kombination","tip":"Fitted tröja balanserar de vida jeansen perfekt"}
+{"score":85,"label":"Bra kombination","critique":"Sammanhängande streetwear-look med bra proportioner. Den röda detaljen lyfter hela outfiten.","tip":"Lägg till ett bälte för att definiera midjan ytterligare"}
 
 BETYGSSKALA:
 - score: heltal mellan 1 och 100
 - label: exakt ett av: "Perfekt match", "Bra kombination", "Godkänd", "Svår kombination"
-- tip: konkret styling-kommentar på svenska, max 20 ord — får aldrig utelämnas
+- critique: 1–2 meningar på svenska, max 30 ord — förklara VARFÖR outfiten fick sitt betyg, nämn specifika plagg och konkreta brister eller styrkor — får aldrig utelämnas
+- tip: konkret handlingsorienterat förslag på svenska, max 20 ord — vad användaren KAN göra för att förbättra — får aldrig utelämnas
 
 ═══ BEDÖMNINGSREGLER ═══
 
@@ -135,7 +136,7 @@ ${itemList}`;
 
   console.log("[outfit-match] Normalized:", normalized);
 
-  let parsed: { score?: unknown; label?: unknown; tip?: unknown; comment?: unknown; kommentar?: unknown } = {};
+  let parsed: { score?: unknown; label?: unknown; critique?: unknown; tip?: unknown; comment?: unknown; kommentar?: unknown } = {};
 
   try {
     let result = JSON.parse(normalized);
@@ -163,7 +164,8 @@ ${itemList}`;
   const result = {
     score: Math.min(100, Math.max(1, Number(parsed.score) || 50)),
     label: String(parsed.label ?? "Godkänd"),
-    tip: String(parsed.tip ?? parsed.comment ?? parsed.kommentar ?? ""),
+    critique: String(parsed.critique ?? parsed.comment ?? parsed.kommentar ?? ""),
+    tip: String(parsed.tip ?? ""),
   };
   console.log("[outfit-match] Result:", result);
   return NextResponse.json(result);

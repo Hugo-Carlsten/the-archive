@@ -165,6 +165,7 @@ export default function OutfitBuilderPage() {
   const [activeFilter, setActiveFilter] = useState("Alla");
   const [matchScore, setMatchScore] = useState(0);
   const [matchLabel, setMatchLabel] = useState("");
+  const [matchCritique, setMatchCritique] = useState("");
   const [matchTip, setMatchTip] = useState("");
   const [loadingMatch, setLoadingMatch] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -198,6 +199,7 @@ export default function OutfitBuilderPage() {
     if (currentFilled.length < 2) {
       setMatchScore(0);
       setMatchLabel("");
+      setMatchCritique("");
       setMatchTip("");
       return;
     }
@@ -233,6 +235,7 @@ export default function OutfitBuilderPage() {
         if (!cancelled) {
           setMatchScore(data.score ?? 0);
           setMatchLabel(data.label ?? "Betyg");
+          setMatchCritique(data.critique ?? "");
           setMatchTip(data.tip ?? "");
         }
       } catch (err) {
@@ -240,6 +243,7 @@ export default function OutfitBuilderPage() {
         if (!cancelled) {
           setMatchScore(0);
           setMatchLabel("Kunde inte beräkna");
+          setMatchCritique("");
           setMatchTip("");
         }
       } finally {
@@ -284,6 +288,7 @@ export default function OutfitBuilderPage() {
     setSlots({ top: null, bottom: null, shoes: null, outerwear: null });
     setMatchScore(0);
     setMatchLabel("");
+    setMatchCritique("");
     setMatchTip("");
     setSaved(false);
   }
@@ -434,9 +439,22 @@ export default function OutfitBuilderPage() {
                         </span>
                       ) : null}
                     </div>
+
+                    {matchCritique ? (
+                      <p className={`text-xs leading-relaxed ${
+                        matchScore >= 80
+                          ? "text-green-700"
+                          : matchScore < 60
+                          ? "text-red-500/80"
+                          : "text-charcoal/50"
+                      }`}>
+                        {matchCritique}
+                      </p>
+                    ) : null}
+
                     {matchTip ? (
-                      <p className="text-xs italic text-charcoal/60 leading-relaxed">
-                        &ldquo;{matchTip}&rdquo;
+                      <p className="text-xs italic leading-relaxed" style={{ color: "#B5956A" }}>
+                        → {matchTip}
                       </p>
                     ) : null}
 
