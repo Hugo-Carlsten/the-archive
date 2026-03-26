@@ -29,17 +29,57 @@ export async function POST(request: Request) {
     .map((item, i) => `${i + 1}. ${item.name} (stil: ${(item.style ?? []).join(", ") || "okänd"}, färger: ${(item.colors ?? []).join(", ") || "okänd"})`)
     .join("\n");
 
-  const prompt = `Du är en stylist. Svara ENDAST med ett JSON-objekt, inga andra ord, ingen förklaring, inga kodblock, ingen markdown.
+  const prompt = `Du är en expert-stylist. Svara ENDAST med ett JSON-objekt, inga andra ord, ingen förklaring, inga kodblock, ingen markdown.
 
 Du MÅSTE inkludera alla tre fält: score, label och tip.
 
 Exakt detta format:
-{"score":85,"label":"Bra kombination","tip":"Neutrala färger skapar en harmonisk och tidlös look"}
+{"score":85,"label":"Bra kombination","tip":"Fitted tröja balanserar de vida jeansen perfekt"}
 
-Regler:
+BETYGSSKALA:
 - score: heltal mellan 1 och 100
 - label: exakt ett av: "Perfekt match", "Bra kombination", "Godkänd", "Svår kombination"
-- tip: alltid en kort styling-kommentar på svenska, max 15 ord — får aldrig utelämnas
+- tip: konkret styling-kommentar på svenska, max 20 ord — får aldrig utelämnas
+
+═══ BEDÖMNINGSREGLER ═══
+
+FÄRGBEDÖMNING:
+- Neutrala färger (svart, vit, beige, grå, navy) kombineras alltid bra → stabilt betyg, ingen straff
+- Monokromatisk outfit (samma färg i olika nyanser) → högt betyg, +10 poäng
+- En utstickande accentfärg i annars neutral outfit → BONUSPOÄNG, kan ge maxbetyg
+  (t.ex. röda skor till helsvart outfit, gul detalj till all-beige = stiligt och modigt)
+- Flera färgkrockar (t.ex. orange + lila + grön) → sänk betyget med 15–25 poäng
+- Komplementfärger (motsatta på färghjulet) → kan fungera OM resten är neutralt, annars -10
+
+STILKOHERENS:
+- Alla plagg delar samma stil-tagg → högst möjliga betyg, ingen straff
+- Minimalistisk + Klassisk → fungerar bra, ingen straff
+- Streetwear + Casual → fungerar bra, ingen straff
+- Streetwear + Vintage → kan fungera, -5 poäng
+- Sportig blandad med Klassisk eller Minimalistisk → DÅLIGT, -20 poäng
+- Klassisk stil + oversized plagg → sänk betyget hårt, -20 poäng
+
+PROPORTIONER (viktigt för helhetsintrycket):
+- Fitted/slim topp + wide/baggy byxor (herr) → BRA, +5 poäng
+- Allt lite oversized i Streetwear/Casual (herr) → BRA, +5 poäng
+- Oversized topp + slim byxor (herr) → DÅLIGT, -15 poäng
+- Slim topp + wide/voluminöst nertill (dam) → BRA, +5 poäng
+- Klassisk stil oavsett kön: fitted/slim silhuett → BRA; oversized → -15 poäng
+- Matchande sportig silhuett (t.ex. tracksuit) → +10 poäng
+
+TRENDER — ge bonuspoäng och nämn trenden i tipset:
+- Tonal dressing (allt i samma färgfamilj) → +10, nämn i tipset
+- Clean minimalism (få plagg, enkla snitt, neutrala färger) → +10, nämn i tipset
+- Streetwear layering (hoodie + jacka + vida byxor) → +10, nämn i tipset
+- Smart casual (jeans + skjorta eller kavaj) → +8, nämn i tipset
+- Athleisure (sportig men sammanhängande) → +8, nämn i tipset
+
+TIPSET SKA:
+- Vara konkret och handlingsorienterat: "Byt skorna mot något mörkare för bättre balans"
+- Nämna specifika plagg ur outfiten
+- Om outfiten nästan är perfekt: föreslå en accessoar eller liten detalj
+- Om outfiten följer en tydlig trend: bekräfta det, t.ex. "Clean minimalism — tidlöst och välbalanserat"
+- Aldrig vara mer än 20 ord
 
 Bedöm denna outfit:
 ${itemList}`;
@@ -52,8 +92,8 @@ ${itemList}`;
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 512,
+          temperature: 0.7,
+          maxOutputTokens: 1024,
         },
       }),
     }
