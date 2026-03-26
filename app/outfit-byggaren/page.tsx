@@ -268,6 +268,7 @@ export default function OutfitBuilderPage() {
         const end = cleaned.lastIndexOf("}");
         const jsonStr = cleaned.slice(start, end + 1);
         const data = JSON.parse(jsonStr);
+        console.log("[outfit-match] Parsed API response:", data);
         if (!cancelled) {
           setMatchScore(data.score ?? 0);
           setMatchLabel(data.label ?? "Betyg");
@@ -494,24 +495,6 @@ export default function OutfitBuilderPage() {
                       ) : null}
                     </div>
 
-                    {matchCritique ? (
-                      <p className={`text-xs leading-relaxed ${
-                        matchScore >= 80
-                          ? "text-green-700"
-                          : matchScore < 60
-                          ? "text-red-500/80"
-                          : "text-charcoal/50"
-                      }`}>
-                        {matchCritique}
-                      </p>
-                    ) : null}
-
-                    {matchTip ? (
-                      <p className="text-xs italic leading-relaxed" style={{ color: "#B5956A" }}>
-                        → {matchTip}
-                      </p>
-                    ) : null}
-
                     {/* Save button */}
                     {user && user !== "loading" ? (
                       <button
@@ -530,6 +513,40 @@ export default function OutfitBuilderPage() {
                         Logga in för att spara outfits
                       </p>
                     )}
+
+                    {/* Critique */}
+                    {matchCritique ? (
+                      <div className="flex flex-col gap-1 pt-1 border-t border-charcoal/8">
+                        <p className="text-[9px] tracking-[0.18em] uppercase text-charcoal/30">Analys</p>
+                        <p
+                          className="leading-relaxed italic"
+                          style={{
+                            fontSize: 13,
+                            color:
+                              matchScore >= 80
+                                ? "#4a7c59"
+                                : matchScore < 60
+                                ? "#b94040"
+                                : "#666666",
+                          }}
+                        >
+                          {matchCritique}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {/* Tip */}
+                    {matchTip ? (
+                      <div className="flex flex-col gap-1">
+                        <p className="text-[9px] tracking-[0.18em] uppercase text-charcoal/30">Tips</p>
+                        <p
+                          className="leading-relaxed"
+                          style={{ fontSize: 13, color: "#B5956A" }}
+                        >
+                          {matchTip}
+                        </p>
+                      </div>
+                    ) : null}
                   </>
                 ) : null}
               </div>
