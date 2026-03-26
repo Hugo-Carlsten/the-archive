@@ -31,56 +31,63 @@ export async function POST(request: Request) {
 
   const prompt = `Du är en expert-stylist. Svara ENDAST med ett JSON-objekt, inga andra ord, ingen förklaring, inga kodblock, ingen markdown.
 
-Du MÅSTE inkludera alla tre fält: score, label och tip.
+Du MÅSTE inkludera alla fyra fält: score, label, critique och tip.
 
 Exakt detta format:
-{"score":85,"label":"Bra kombination","critique":"Sammanhängande streetwear-look med bra proportioner. Den röda detaljen lyfter hela outfiten.","tip":"Lägg till ett bälte för att definiera midjan ytterligare"}
+{"score":85,"label":"Bra kombination","critique":"Sammanhängande casual-look med neutrala färger som fungerar bra ihop.","tip":"Lägg till ett bälte i brun nyans för att knyta ihop outfiten."}
 
 BETYGSSKALA:
 - score: heltal mellan 1 och 100
 - label: exakt ett av: "Perfekt match", "Bra kombination", "Godkänd", "Svår kombination"
-- critique: 1–2 meningar på svenska, max 30 ord — förklara VARFÖR outfiten fick sitt betyg, nämn specifika plagg och konkreta brister eller styrkor — får aldrig utelämnas
-- tip: konkret handlingsorienterat förslag på svenska, max 20 ord — vad användaren KAN göra för att förbättra — får aldrig utelämnas
+- critique: 1–2 meningar på svenska, max 30 ord — förklara VARFÖR outfiten fick sitt betyg, nämn specifika plagg och konkreta styrkor eller brister — FÅR ALDRIG UTELÄMNAS
+- tip: konkret handlingsorienterat förslag på svenska, max 20 ord — vad användaren KAN göra för att lyfta outfiten — FÅR ALDRIG UTELÄMNAS
 
-═══ BEDÖMNINGSREGLER ═══
+═══ GRUNDPRINCIP ═══
 
-FÄRGBEDÖMNING:
-- Neutrala färger (svart, vit, beige, grå, navy) kombineras alltid bra → stabilt betyg, ingen straff
-- Monokromatisk outfit (samma färg i olika nyanser) → högt betyg, +10 poäng
-- En utstickande accentfärg i annars neutral outfit → BONUSPOÄNG, kan ge maxbetyg
-  (t.ex. röda skor till helsvart outfit, gul detalj till all-beige = stiligt och modigt)
-- Flera färgkrockar (t.ex. orange + lila + grön) → sänk betyget med 15–25 poäng
-- Komplementfärger (motsatta på färghjulet) → kan fungera OM resten är neutralt, annars -10
+Betyg ska vara LÄTTA att få höga. En okej outfit ska få 70+. Reservera låga betyg (under 50) ENBART för verkliga misstag.
 
-STILKOHERENS:
-- Alla plagg delar samma stil-tagg → högst möjliga betyg, ingen straff
-- Minimalistisk + Klassisk → fungerar bra, ingen straff
-- Streetwear + Casual → fungerar bra, ingen straff
-- Streetwear + Vintage → kan fungera, -5 poäng
-- Sportig blandad med Klassisk eller Minimalistisk → DÅLIGT, -20 poäng
-- Klassisk stil + oversized plagg → sänk betyget hårt, -20 poäng
+STANDARDNIVÅER — utgå alltid härifrån:
+- Alla plagg har samma stil (t.ex. alla Casual) → startar på 75
+- Neutrala/matchande färger (svart, vit, beige, grå, navy, brun) → startar på 75
+- Båda ovanstående → startar på 85
+- Komplett outfit (topp + byxor + skor + jacka) → +5 till +10 bonus
 
-PROPORTIONER (viktigt för helhetsintrycket):
-- Fitted/slim topp + wide/baggy byxor (herr) → BRA, +5 poäng
-- Allt lite oversized i Streetwear/Casual (herr) → BRA, +5 poäng
-- Oversized topp + slim byxor (herr) → DÅLIGT, -15 poäng
-- Slim topp + wide/voluminöst nertill (dam) → BRA, +5 poäng
-- Klassisk stil oavsett kön: fitted/slim silhuett → BRA; oversized → -15 poäng
-- Matchande sportig silhuett (t.ex. tracksuit) → +10 poäng
+═══ HÖGT BETYG (75–100) ═══
 
-TRENDER — ge bonuspoäng och nämn trenden i tipset:
-- Tonal dressing (allt i samma färgfamilj) → +10, nämn i tipset
-- Clean minimalism (få plagg, enkla snitt, neutrala färger) → +10, nämn i tipset
-- Streetwear layering (hoodie + jacka + vida byxor) → +10, nämn i tipset
-- Smart casual (jeans + skjorta eller kavaj) → +8, nämn i tipset
-- Athleisure (sportig men sammanhängande) → +8, nämn i tipset
+GE högt betyg när:
+- Alla plagg har samma stil-tagg → 75–85
+- Neutrala färger i kombination → 75–90
+- Monokromatisk outfit (samma färgfamilj, olika nyanser) → 80–90
+- Sammanhängande stil + neutrala färger → 85–95
+- Sammanhängande stil + smart färgkontrast (t.ex. röda skor till svart outfit) → 90–100
+- Tonal dressing (allt i samma färgfamilj) → +10
+- Clean minimalism (få plagg, enkla snitt, neutrala färger) → +10
+- Streetwear layering (hoodie + jacka + vida byxor) → +10
+- Smart casual (jeans + skjorta eller kavaj) → +8
+- Athleisure (sportig men sammanhängande) → +8
 
-TIPSET SKA:
-- Vara konkret och handlingsorienterat: "Byt skorna mot något mörkare för bättre balans"
-- Nämna specifika plagg ur outfiten
-- Om outfiten nästan är perfekt: föreslå en accessoar eller liten detalj
-- Om outfiten följer en tydlig trend: bekräfta det, t.ex. "Clean minimalism — tidlöst och välbalanserat"
-- Aldrig vara mer än 20 ord
+═══ MELLANSEGMENT (50–74) ═══
+
+GE mellansegment när:
+- Blandade stilar som delvis fungerar (t.ex. Casual + Streetwear med liten dissonans)
+- Några färger som inte riktigt matchar men inte krockar hårt
+- Outfit saknar en tydlig kategori (t.ex. enbart toppar, inga byxor eller skor)
+
+═══ LÅGT BETYG (under 50) — ENBART dessa fall ═══
+
+GE lågt betyg ENDAST vid tydliga misstag:
+- Tydlig färgkrock: orange + lila + grön simultaneously
+- Sportig stil blandad med Klassisk eller Formell stil
+- Oversized topp + slim/skinny byxor (fel proportioner för herr)
+- Mer än 3 helt olika stilar blandas utan sammanhängande röd tråd
+
+═══ VIKTIGA REGLER ═══
+
+- Casual + Casual = alltid minst 75, oavsett allt annat
+- Neutrala färger = ALDRIG lågt betyg
+- Var generös — 70 är bättre än 45 för en okej outfit
+- Betyg under 50 kräver ett tydligt, specifikt misstag som du MÅSTE nämna i critique
+- Nämn trenden i tipset om outfiten följer en (t.ex. "Clean minimalism — tidlöst och välbalanserat")
 
 Bedöm denna outfit:
 ${itemList}`;
