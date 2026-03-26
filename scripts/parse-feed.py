@@ -63,7 +63,7 @@ with open(csv_path, encoding="utf-8-sig") as f:
                 "gender":"herr","condition":"new","isSecondHand":False,"link":link}
         if op > p: prod["originalPrice"] = op
         out.append(prod)
-        if len(out) >= 60: break
+        if len(out) >= 120: break
 
 ts = 'import { Product } from "./firestore-setup";\n\nexport const mockProducts: Omit<Product, "id">[] = ' + json.dumps(out, indent=2, ensure_ascii=False) + ";\n"
 open(out_path, "w", encoding="utf-8").write(ts)

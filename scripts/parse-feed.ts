@@ -41,7 +41,7 @@ function mapStyle(name: string, cat: string): string[] {
 }
 
 // --- Filtrera och deduplicera ---
-const SKIP_CATS = ["underkläder", "strumpor", "kalsonger", "boxer", "badkläder", "pyjamas", "accessoar", "smycke", "väska", "parfym"];
+const SKIP_CATS = ["underkläder", "strumpor", "kalsonger", "boxer", "badkläder", "pyjamas", "solglasögon", "handväskor", "parfym"];
 
 const seen = new Set<string>();
 const products: object[] = [];
@@ -52,11 +52,11 @@ for (let i = 1; i < lines.length; i++) {
 
   const name = row["product_name"] || "";
   const price = parseFloat(row["search_price"]) || 0;
-  const oldPrice = parseFloat(row["product_price_old"]) || 0;
+  const oldPrice = parseFloat(row["product_price_old"]?.split(" ")[0]) || 0;
   const imageUrl = row["merchant_image_url"] || "";
   const link = row["aw_deep_link"] || "";
   const colour = row["colour"] || "";
-  const merchantCat = (row["merchant_product_category_path"] || row["merchant_category"] || "").toLowerCase();
+  const merchantCat = (row["merchant_category"] || "").toLowerCase();
   const inStock = row["in_stock"] === "1" || row["in_stock"] === "yes";
   const parentId = row["parent_product_id"] || row["aw_product_id"] || "";
   const brandRaw = row["brand_name"] || "NLY Man";
@@ -65,15 +65,17 @@ for (let i = 1; i < lines.length; i++) {
   if (!inStock) continue;
 
   // Hoppa över underkläder etc
-  if (SKIP_CATS.some(s => merchantCat.toLowerCase().includes(s))) continue;
+  if (SKIP_CATS.some(s => merchantCat.includes(s))) continue;
   if (SKIP_CATS.some(s => name.toLowerCase().includes(s))) continue;
+
+  // Kategorimappning sker FÖRE seen-check så att storlekvarianter med
+  // generisk kategori inte blockerar varianter med specifik kategori
+  const category = mapCategory(merchantCat);
+  if (!category) continue;
 
   // En produkt per parent_id (undvik storleksdubbletter)
   if (seen.has(parentId)) continue;
   seen.add(parentId);
-
-  const category = mapCategory(merchantCat);
-  if (!category) continue;
 
   const brand = brandRaw
     .split(" ")
@@ -97,7 +99,7 @@ for (let i = 1; i < lines.length; i++) {
     link,
   });
 
-  if (products.length >= 60) break;
+  if (products.length >= 120) break;
 }
 
 // --- Skriv ut mock-products.ts ---
