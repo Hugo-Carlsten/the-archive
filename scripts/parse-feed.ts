@@ -30,14 +30,52 @@ function mapCategory(merchantCat: string): string | null {
 }
 
 // --- Stilmappning ---
-function mapStyle(name: string, cat: string): string[] {
+function mapStyle(name: string, cat: string, brand: string): string[] {
   const n = name.toLowerCase();
-  if (n.includes("slim") || n.includes("skinny")) return ["Minimalistisk", "Klassisk"];
-  if (n.includes("cargo") || n.includes("wide") || n.includes("oversized")) return ["Streetwear", "Casual"];
-  if (n.includes("linen") || n.includes("lin")) return ["Minimalistisk", "Skandinavisk"];
-  if (cat === "jacket") return ["Casual", "Klassisk"];
-  if (cat === "shoes") return ["Streetwear", "Casual"];
-  return ["Casual"];
+  const b = brand.toLowerCase();
+
+  // STREETWEAR-märken
+  if (["tommy jeans", "tommy hilfiger", "calvin klein", "new balance", "nike", "adidas", "rockandblue"].some(x => b.includes(x)))
+    return ["Streetwear", "Minimalistisk"];
+
+  // KLASSISK/FORMELL - kostymer, kavajer, skjortor, västar
+  if (n.includes("kostym") || n.includes("kavaj") || n.includes("blazer") || n.includes("väst") || n.includes("waistcoat") || n.includes("skjorta") || n.includes("shirt"))
+    return ["Klassisk", "Minimalistisk"];
+
+  // SKANDINAVISK/MINIMALISTISK - enkla basplagg, linne, neutral
+  if (n.includes("linen") || n.includes("lin ") || n.includes("basic") || n.includes("slim") || n.includes("crew") || n.includes("crewneck"))
+    return ["Minimalistisk", "Skandinavisk"];
+
+  // VINTAGE - retro, workwear, overshirts
+  if (n.includes("overshirt") || n.includes("flanell") || n.includes("worker") || n.includes("cargo") || n.includes("vintage") || n.includes("retro"))
+    return ["Vintage", "Streetwear"];
+
+  // STREETWEAR - hoodies, sweatshirts, vida byxor, puffer
+  if (n.includes("hoodie") || n.includes("sweat") || n.includes("puffer") || n.includes("parka") || n.includes("wide") || n.includes("baggy") || n.includes("track"))
+    return ["Streetwear"];
+
+  // SPORTIG - träning, tech, löpning
+  if (n.includes("sport") || n.includes("tech") || n.includes("performance") || n.includes("training") || n.includes("running"))
+    return ["Sportig"];
+
+  // JACKOR - baserat på typ
+  if (cat === "outerwear") {
+    if (n.includes("trench") || n.includes("wool") || n.includes("ull")) return ["Klassisk", "Minimalistisk"];
+    if (n.includes("denim") || n.includes("jeans")) return ["Vintage", "Streetwear"];
+    if (n.includes("bomber")) return ["Streetwear", "Minimalistisk"];
+    return ["Minimalistisk", "Skandinavisk"];
+  }
+
+  // SKOR - baserat på typ
+  if (cat === "shoes") {
+    if (n.includes("sneaker") || n.includes("basket") || n.includes("runner")) return ["Streetwear", "Minimalistisk"];
+    if (n.includes("boot") || n.includes("käng")) return ["Vintage", "Klassisk"];
+    if (n.includes("loafer") || n.includes("oxford") || n.includes("derby")) return ["Klassisk", "Minimalistisk"];
+    return ["Minimalistisk"];
+  }
+
+  // DEFAULT
+  return ["Minimalistisk", "Skandinavisk"];
 }
 
 // --- Filtrera och deduplicera ---
@@ -91,7 +129,7 @@ for (let i = 1; i < lines.length; i++) {
     ...(isOnSale && { originalPrice: oldPrice }),
     imageUrl,
     category,
-    style: mapStyle(name, category),
+    style: mapStyle(name, category, brandRaw),
     colors: colour ? [colour.toLowerCase()] : [""],
     gender: "herr",
     condition: "new",
