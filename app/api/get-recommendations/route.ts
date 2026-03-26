@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "GEMINI_API_KEY saknas" }, { status: 500 });
   }
 
-  const { uid } = await req.json();
+  const { uid, sessionCategories, sessionDescription } = await req.json();
 
   // ── Fetch all products (always needed) ───────────────────────────────────
   const productsSnap = await getDocs(collection(db, "products"));
@@ -137,8 +137,19 @@ export async function POST(req: NextRequest) {
     isSecondHand: p.isSecondHand,
   }));
 
-  const prompt = `Du är en personlig AI-stylist. Ranka ALLA produkter nedan från mest till minst relevant för denna användare.
+  // ── Session intent (highest priority override) ────────────────────────────
+  const hasSessionIntent = (sessionCategories?.length > 0) || !!sessionDescription;
+  const sessionIntentBlock = hasSessionIntent
+    ? `
+═══ AKTUELL SÖKINTENTION (ABSOLUT HÖGSTA PRIORITET — väger tyngre än ALLT annat) ═══
+${sessionCategories?.length > 0 ? `Användaren letar SPECIFIKT efter dessa kategorier just nu: ${sessionCategories.join(", ")} — produkter i dessa kategorier ska rankas HÖGST oavsett allt annat.` : ""}
+${sessionDescription ? `Användarens exakta sökbeskrivning just nu: "${sessionDescription}" — analysera nyckelord (plaggtyp, färg, tillfälle) och matcha produkter som passar denna beskrivning HÖGST i listan.` : ""}
+Dessa signaler är färskare och viktigare än användarens sparade stilprofil.
+`
+    : "";
 
+  const prompt = `Du är en personlig AI-stylist. Ranka ALLA produkter nedan från mest till minst relevant för denna användare.
+${sessionIntentBlock}
 ═══ ANVÄNDARKONTEXT ═══
 Stilbeskrivning (viktigaste signalen): "${profile.styleDescription ?? ""}"
 Stilkategorier: ${(profile.styleCategories ?? []).join(", ") || "ej angivet"}
