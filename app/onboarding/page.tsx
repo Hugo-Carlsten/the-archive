@@ -19,6 +19,8 @@ interface Sizes {
   shoes: string;
 }
 
+type BottomSizeMode = "standard" | "jeans";
+
 interface UploadedFile {
   id: string;
   file: File;
@@ -33,6 +35,9 @@ interface FormData {
   shoppingMode: ShoppingMode | null;
   gender: Gender | null;
   sizes: Sizes;
+  pantSizeStandard: string;
+  jeansW: string;
+  jeansL: string;
   styleCategories: string[];
   colorPreferences: string[];
   colorDislikes: string[];
@@ -65,7 +70,9 @@ const SHOPPING_MODES = [
 ];
 
 const TOP_SIZES = ["XS", "S", "M", "L", "XL"];
-const BOTTOM_SIZES = ["32", "34", "36", "38", "40"];
+const STANDARD_BOTTOM_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+const JEANS_W_SIZES = ["28", "29", "30", "31", "32", "33", "34", "36", "38"];
+const JEANS_L_SIZES = ["30", "32", "34"];
 const SHOE_SIZES = ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46"];
 
 const STYLE_OPTIONS = [
@@ -397,10 +404,15 @@ export default function OnboardingPage() {
   // Tracks file IDs already queued for analysis — prevents double-calls in StrictMode
   const analyzingRef = useRef<Set<string>>(new Set());
 
+  const [bottomSizeMode, setBottomSizeMode] = useState<BottomSizeMode>("standard");
+
   const [form, setForm] = useState<FormData>({
     shoppingMode: null,
     gender: null,
     sizes: { top: "", bottom: "", shoes: "" },
+    pantSizeStandard: "",
+    jeansW: "",
+    jeansL: "",
     styleCategories: [],
     colorPreferences: [],
     colorDislikes: [],
@@ -573,6 +585,8 @@ export default function OnboardingPage() {
         shoppingMode: form.shoppingMode,
         gender: form.gender,
         sizes: form.sizes,
+        pantSizeStandard: form.pantSizeStandard || null,
+        pantSizeJeans: form.jeansW && form.jeansL ? `${form.jeansW}/${form.jeansL}` : null,
         styleCategories: form.styleCategories,
         colorPreferences: form.colorPreferences,
         colorDislikes: form.colorDislikes,
@@ -733,12 +747,103 @@ export default function OnboardingPage() {
                 value={form.sizes.top}
                 onChange={(v) => setForm((p) => ({ ...p, sizes: { ...p.sizes, top: v } }))}
               />
-              <SizeSelector
-                label="Byxor / Kjol"
-                options={BOTTOM_SIZES}
-                value={form.sizes.bottom}
-                onChange={(v) => setForm((p) => ({ ...p, sizes: { ...p.sizes, bottom: v } }))}
-              />
+
+              {/* Byxor / Kjol — dual system */}
+              <div className="flex flex-col gap-3">
+                <span className="text-xs tracking-[0.2em] text-charcoal/50 uppercase">Byxor / Kjol</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBottomSizeMode("standard")}
+                    className={`px-4 py-2 text-xs tracking-[0.1em] border transition-colors duration-150 ${
+                      bottomSizeMode === "standard"
+                        ? "border-charcoal bg-charcoal text-cream"
+                        : "border-charcoal/20 text-charcoal/50 hover:border-charcoal/40 hover:text-charcoal"
+                    }`}
+                  >
+                    Standard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBottomSizeMode("jeans")}
+                    className={`px-4 py-2 text-xs tracking-[0.1em] border transition-colors duration-150 ${
+                      bottomSizeMode === "jeans"
+                        ? "border-charcoal bg-charcoal text-cream"
+                        : "border-charcoal/20 text-charcoal/50 hover:border-charcoal/40 hover:text-charcoal"
+                    }`}
+                  >
+                    Jeans (W/L)
+                  </button>
+                </div>
+
+                {bottomSizeMode === "standard" && (
+                  <div className="flex flex-wrap gap-2">
+                    {STANDARD_BOTTOM_SIZES.map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, pantSizeStandard: size === p.pantSizeStandard ? "" : size }))}
+                        className={`px-4 py-2 text-sm border transition-colors duration-150 ${
+                          form.pantSizeStandard === size
+                            ? "border-[#2C2C2C] bg-[#2C2C2C] text-white"
+                            : "border-charcoal/20 bg-cream text-charcoal hover:border-charcoal/50"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {bottomSizeMode === "jeans" && (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] tracking-[0.15em] text-charcoal/40 uppercase">Midja (W)</span>
+                      <div className="flex flex-wrap gap-2">
+                        {JEANS_W_SIZES.map((w) => (
+                          <button
+                            key={w}
+                            type="button"
+                            onClick={() => setForm((p) => ({ ...p, jeansW: w === p.jeansW ? "" : w }))}
+                            className={`px-3 py-2 text-sm border transition-colors duration-150 ${
+                              form.jeansW === w
+                                ? "border-[#2C2C2C] bg-[#2C2C2C] text-white"
+                                : "border-charcoal/20 bg-cream text-charcoal hover:border-charcoal/50"
+                            }`}
+                          >
+                            {w}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] tracking-[0.15em] text-charcoal/40 uppercase">Längd (L)</span>
+                      <div className="flex flex-wrap gap-2">
+                        {JEANS_L_SIZES.map((l) => (
+                          <button
+                            key={l}
+                            type="button"
+                            onClick={() => setForm((p) => ({ ...p, jeansL: l === p.jeansL ? "" : l }))}
+                            className={`px-3 py-2 text-sm border transition-colors duration-150 ${
+                              form.jeansL === l
+                                ? "border-[#2C2C2C] bg-[#2C2C2C] text-white"
+                                : "border-charcoal/20 bg-cream text-charcoal hover:border-charcoal/50"
+                            }`}
+                          >
+                            {l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {form.jeansW && form.jeansL && (
+                      <p className="text-xs text-taupe tracking-wide">
+                        Vald jeansstorlek: {form.jeansW}/{form.jeansL}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <SizeSelector
                 label="Skor"
                 options={SHOE_SIZES}

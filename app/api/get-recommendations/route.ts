@@ -148,6 +148,13 @@ Dessa signaler är färskare och viktigare än användarens sparade stilprofil.
 `
     : "";
 
+  const sizeContext = [
+    profile.sizes?.top ? `Topp: ${profile.sizes.top}` : null,
+    profile.pantSizeStandard ? `Byxor (standard): ${profile.pantSizeStandard}` : null,
+    profile.pantSizeJeans ? `Byxor (jeans W/L): ${profile.pantSizeJeans}` : null,
+    profile.sizes?.shoes ? `Skor: ${profile.sizes.shoes}` : null,
+  ].filter(Boolean).join(", ") || "ej angivet";
+
   const prompt = `Du är en personlig AI-stylist. Ranka ALLA produkter nedan från mest till minst relevant för denna användare.
 ${sessionIntentBlock}
 ═══ ANVÄNDARKONTEXT ═══
@@ -159,6 +166,7 @@ Neutrala färger — straffas aldrig: svart, vit, grå, beige, navy
 Prisklass: ${priceRangeLabel[profile.priceRange] ?? "Spelar ingen roll."}
 Shoppingläge: ${shoppingLabel}
 Kön: ${genderLabel}
+Storlekar: ${sizeContext}
 
 ═══ GARDEROBSANALYS ═══
 Toppar: ${wardrobeCounts["top"] ?? 0} st

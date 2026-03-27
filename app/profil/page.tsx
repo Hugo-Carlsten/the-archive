@@ -17,6 +17,9 @@ interface StyleProfile {
   priceRange?: string;
   gender?: string;
   styleDescription?: string;
+  sizes?: { top?: string; shoes?: string };
+  pantSizeStandard?: string | null;
+  pantSizeJeans?: string | null;
   createdAt?: Timestamp;
 }
 
@@ -439,6 +442,35 @@ export default function ProfilPage() {
                 <p className="text-sm text-charcoal">
                   {PRICE_RANGE_LABEL[styleProfile.priceRange] ?? styleProfile.priceRange}
                 </p>
+              </div>
+            )}
+
+            {/* Storlekar */}
+            {(styleProfile.sizes?.top || styleProfile.sizes?.shoes || styleProfile.pantSizeStandard || styleProfile.pantSizeJeans) && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[10px] tracking-[0.2em] text-charcoal/40 uppercase">Storlekar</p>
+                <div className="flex flex-wrap gap-2">
+                  {styleProfile.sizes?.top && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-charcoal/5 text-charcoal text-xs tracking-wide">
+                      <span className="text-charcoal/40">Topp</span> {styleProfile.sizes.top}
+                    </span>
+                  )}
+                  {styleProfile.pantSizeStandard && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-charcoal/5 text-charcoal text-xs tracking-wide">
+                      <span className="text-charcoal/40">Byxor</span> {styleProfile.pantSizeStandard}
+                    </span>
+                  )}
+                  {styleProfile.pantSizeJeans && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-charcoal/5 text-charcoal text-xs tracking-wide">
+                      <span className="text-charcoal/40">Jeans</span> W{styleProfile.pantSizeJeans}
+                    </span>
+                  )}
+                  {styleProfile.sizes?.shoes && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-charcoal/5 text-charcoal text-xs tracking-wide">
+                      <span className="text-charcoal/40">Skor</span> {styleProfile.sizes.shoes}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
