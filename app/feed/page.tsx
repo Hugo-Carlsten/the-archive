@@ -172,6 +172,54 @@ function HeartIcon({ filled }: { filled: boolean }) {
   );
 }
 
+// ─── LockedCard (browse mode — blurred beyond daily limit) ───────────────────
+
+function LockedCard({ imageUrl }: { imageUrl?: string }) {
+  return (
+    <div className="relative aspect-[3/4] overflow-hidden border border-border">
+      <div style={{ filter: "blur(8px)", transform: "scale(1.05)" }} className="absolute inset-0">
+        <img
+          src={imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"}
+          alt=""
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"; }}
+        />
+      </div>
+      <div className="absolute inset-0 bg-charcoal/50 flex flex-col items-center justify-center gap-2 px-3">
+        <svg className="w-5 h-5 text-cream/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 11V7a5 5 0 0110 0v4" />
+        </svg>
+        <p className="text-cream text-[10px] tracking-[0.12em] uppercase text-center leading-snug">
+          Uppgradera för fler plagg
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── BrowseUpgradeBanner ──────────────────────────────────────────────────────
+
+function BrowseUpgradeBanner({ isPlusUser }: { isPlusUser: boolean }) {
+  return (
+    <div className="my-10 border border-charcoal/10 bg-cream px-8 py-10 flex flex-col items-center text-center gap-4">
+      <div className="w-px h-6 bg-taupe/30" />
+      <h3 className="font-serif text-2xl text-charcoal tracking-wide">Vill du se fler plagg?</h3>
+      <p className="text-sm text-charcoal/50 tracking-wide max-w-xs leading-relaxed">
+        {isPlusUser
+          ? "Uppgradera till Premium för obegränsad feed"
+          : "Uppgradera till Plus för 65 plagg/dag eller Premium för obegränsat"}
+      </p>
+      <Link
+        href="/uppgradera"
+        className="mt-2 px-10 py-3 bg-charcoal text-cream text-xs tracking-[0.2em] uppercase hover:bg-taupe transition-colors duration-300"
+      >
+        Se medlemskap
+      </Link>
+    </div>
+  );
+}
+
 // ─── ProductCard (browse mode) ────────────────────────────────────────────────
 
 function ProductCard({ product, wishlisted, onToggleWishlist }: {
@@ -502,7 +550,7 @@ function SwipeMode({ products, onLike, activeFilter, setActiveFilter }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function FeedPage() {
-  const { dailyLimit, swipesLeft, maxWishlist, incrementSwipeCount, isLoading: subLoading, isOnTrial, trialDaysLeft } = useSubscription();
+  const { tier, dailyLimit, swipesLeft, maxWishlist, incrementSwipeCount, isLoading: subLoading, isOnTrial, trialDaysLeft } = useSubscription();
   const [sessionCount, setSessionCount] = useState(0); // local session counter
   const [limitReached, setLimitReached] = useState(false);
   const [wishlistToast, setWishlistToast] = useState(false);
@@ -664,6 +712,9 @@ export default function FeedPage() {
     if (activeFilter === "Second hand") return p.isSecondHand;
     return p.category === FILTER_CAT[activeFilter];
   });
+
+  // How many browse cards are visible (unblurred) per tier
+  const browseLimit = tier === "premium" ? Infinity : tier === "plus" ? 65 : 15;
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -874,16 +925,31 @@ export default function FeedPage() {
                   <p className="text-sm text-charcoal/40 tracking-wide">Inga plagg hittades</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-                  {browseFiltered.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      wishlisted={wishlist.has(product.id)}
-                      onToggleWishlist={() => toggleWishlist(product)}
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* Visible products */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
+                    {browseFiltered.slice(0, browseLimit === Infinity ? undefined : browseLimit).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        wishlisted={wishlist.has(product.id)}
+                        onToggleWishlist={() => toggleWishlist(product)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Upgrade banner + blurred overflow */}
+                  {browseLimit !== Infinity && browseFiltered.length > browseLimit && (
+                    <>
+                      <BrowseUpgradeBanner isPlusUser={tier === "plus"} />
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
+                        {browseFiltered.slice(browseLimit, browseLimit + 6).map((product) => (
+                          <LockedCard key={product.id} imageUrl={product.imageUrl} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
               )}
             </>
           )}

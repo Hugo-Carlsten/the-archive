@@ -39,14 +39,14 @@ export default function Home() {
           ) : loggedIn ? (
             <Link
               href="/feed"
-              className="px-12 py-4 bg-midnight text-cream text-xs tracking-[0.25em] uppercase hover:bg-charcoal transition-colors duration-500"
+              className="px-16 py-5 bg-midnight text-cream text-base tracking-[0.25em] uppercase hover:bg-charcoal transition-colors duration-500"
             >
               Gå till min feed →
             </Link>
           ) : (
             <Link
               href="/onboarding"
-              className="px-12 py-4 bg-midnight text-cream text-xs tracking-[0.25em] uppercase hover:bg-charcoal transition-colors duration-500"
+              className="px-16 py-5 bg-midnight text-cream text-base tracking-[0.25em] uppercase hover:bg-charcoal transition-colors duration-500"
             >
               Kom igång
             </Link>

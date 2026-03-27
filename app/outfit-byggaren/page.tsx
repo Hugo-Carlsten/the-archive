@@ -525,31 +525,53 @@ export default function OutfitBuilderPage() {
 
             {/* AI suggestion */}
             {suggestion && emptySlot && (
-              <div className="border border-taupe/40 bg-taupe/5 p-4 flex flex-col gap-3">
+              <div className="relative border border-taupe/40 bg-taupe/5 p-4 flex flex-col gap-3 overflow-hidden">
                 <p className="text-[10px] tracking-[0.2em] text-taupe uppercase">
                   AI-förslag — {emptySlot.label}
                 </p>
-                <div className="flex items-center gap-3">
-                  <img
-                    src={suggestion.imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"}
-                    alt={suggestion.name}
-                    className="w-12 h-16 object-cover flex-shrink-0"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive";
-                    }}
-                  />
-                  <div className="flex flex-col gap-1 min-w-0">
-                    <p className="text-xs text-charcoal leading-snug truncate">{suggestion.name}</p>
-                    <p className="text-xs text-charcoal/50">{suggestion.price} kr</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => addProduct(suggestion)}
-                  className="w-full py-2 bg-charcoal text-cream text-xs tracking-[0.15em] uppercase hover:bg-taupe transition-colors"
+                <div
+                  className="flex flex-col gap-3"
+                  style={!hasAITips ? { filter: "blur(6px)", pointerEvents: "none", userSelect: "none" } : undefined}
                 >
-                  Lägg till
-                </button>
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={suggestion.imageUrl || "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive"}
+                      alt={suggestion.name}
+                      className="w-12 h-16 object-cover flex-shrink-0"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src =
+                          "https://placehold.co/400x500/F5F0E8/2C2C2C?text=The+Archive";
+                      }}
+                    />
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <p className="text-xs text-charcoal leading-snug truncate">{suggestion.name}</p>
+                      <p className="text-xs text-charcoal/50">{suggestion.price} kr</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => addProduct(suggestion)}
+                    className="w-full py-2 bg-charcoal text-cream text-xs tracking-[0.15em] uppercase hover:bg-taupe transition-colors"
+                  >
+                    Lägg till
+                  </button>
+                </div>
+                {!hasAITips && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 bg-cream/70">
+                    <svg className="w-4 h-4 text-charcoal/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                    <p className="text-[9px] tracking-[0.15em] uppercase text-charcoal/60 text-center leading-snug">
+                      AI-förslag på kompletterande plagg ingår i Plus och Premium
+                    </p>
+                    <Link
+                      href="/uppgradera"
+                      className="mt-1 px-4 py-1.5 bg-charcoal text-cream text-[9px] tracking-[0.18em] uppercase hover:bg-taupe transition-colors"
+                    >
+                      Uppgradera
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 
@@ -620,26 +642,54 @@ export default function OutfitBuilderPage() {
                         ) : null}
                       </>
                     ) : (
-                      <div className="flex flex-col gap-2 border border-charcoal/8 p-3 bg-charcoal/3">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-3.5 h-3.5 text-charcoal/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <div className="relative flex flex-col gap-3 overflow-hidden">
+                        <div style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none" }} className="flex flex-col gap-3">
+                          {matchResult.critique ? (
+                            <div className="flex flex-col gap-1">
+                              <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>
+                                Analys
+                              </span>
+                              <p style={{ fontSize: 13, fontStyle: "italic", lineHeight: 1.55, color: "#666666" }}>
+                                {matchResult.critique}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>Analys</span>
+                              <p style={{ fontSize: 13, fontStyle: "italic", lineHeight: 1.55, color: "#666666" }}>
+                                En detaljerad analys av din outfit visas här för Plus och Premium-användare.
+                              </p>
+                            </div>
+                          )}
+                          {matchResult.tip ? (
+                            <div className="flex flex-col gap-1">
+                              <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>Tips</span>
+                              <p style={{ fontSize: 13, lineHeight: 1.55, color: "#B5956A" }}>{matchResult.tip}</p>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>Tips</span>
+                              <p style={{ fontSize: 13, lineHeight: 1.55, color: "#B5956A" }}>
+                                Personliga stilråd och tips visas här för Plus och Premium-användare.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-cream/75">
+                          <svg className="w-4 h-4 text-charcoal/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M7 11V7a5 5 0 0110 0v4" />
                           </svg>
-                          <span style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: "#9E9090" }}>
-                            AI-analys och stilråd
-                          </span>
+                          <p className="text-[9px] tracking-[0.15em] uppercase text-charcoal/60 text-center leading-snug">
+                            AI-analys ingår i Plus och Premium
+                          </p>
+                          <Link
+                            href="/uppgradera"
+                            className="mt-1 px-4 py-1.5 bg-charcoal text-cream text-[9px] tracking-[0.18em] uppercase hover:bg-taupe transition-colors"
+                          >
+                            Uppgradera →
+                          </Link>
                         </div>
-                        <p className="text-xs text-charcoal/40 leading-snug">
-                          Ingår i Plus och Premium
-                        </p>
-                        <Link
-                          href="/uppgradera"
-                          className="self-start text-[10px] tracking-[0.12em] uppercase transition-colors duration-200"
-                          style={{ color: "#B5956A" }}
-                        >
-                          Uppgradera →
-                        </Link>
                       </div>
                     )}
 
