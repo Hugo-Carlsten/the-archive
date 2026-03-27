@@ -55,13 +55,13 @@ function PlanDropdown({ tier }: { tier: Tier }) {
 
   return (
     <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="text-[8px] tracking-[0.18em] uppercase px-1.5 py-0.5 leading-none cursor-pointer select-none"
+      <Link
+        href="/uppgradera"
+        className="text-[8px] tracking-[0.18em] uppercase px-1.5 py-0.5 leading-none select-none"
         style={{ background: current.color, color: "#F5F0E8" }}
       >
         {tier}
-      </button>
+      </Link>
       {open && (
         <div className="absolute top-full right-0 mt-2 bg-cream border border-charcoal/10 shadow-sm z-[100] min-w-[140px]">
           {TIER_OPTIONS.map((opt) => (
