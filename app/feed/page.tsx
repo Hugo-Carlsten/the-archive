@@ -2,7 +2,7 @@
 
 import {
   useState, useEffect, useRef,
-  forwardRef, useImperativeHandle,
+  forwardRef, useImperativeHandle, Fragment,
 } from "react";
 import Link from "next/link";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -925,31 +925,48 @@ export default function FeedPage() {
                   <p className="text-sm text-charcoal/40 tracking-wide">Inga plagg hittades</p>
                 </div>
               ) : (
-                <>
-                  {/* Visible products */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-                    {browseFiltered.slice(0, browseLimit === Infinity ? undefined : browseLimit).map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        wishlisted={wishlist.has(product.id)}
-                        onToggleWishlist={() => toggleWishlist(product)}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Upgrade banner + blurred overflow */}
-                  {browseLimit !== Infinity && browseFiltered.length > browseLimit && (
-                    <>
-                      <BrowseUpgradeBanner isPlusUser={tier === "plus"} />
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-                        {browseFiltered.slice(browseLimit, browseLimit + 6).map((product) => (
-                          <LockedCard key={product.id} imageUrl={product.imageUrl} />
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
+                  {browseFiltered.map((product, index) => {
+                    const limit = browseLimit;
+                    const isBlurred = limit !== Infinity && index >= limit;
+                    return (
+                      <Fragment key={product.id || index}>
+                        <div className="relative">
+                          {isBlurred ? (
+                            <div className="relative">
+                              <div style={{ filter: "blur(8px)", pointerEvents: "none" }}>
+                                <ProductCard
+                                  product={product}
+                                  wishlisted={wishlist.has(product.id)}
+                                  onToggleWishlist={() => toggleWishlist(product)}
+                                />
+                              </div>
+                              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 rounded">
+                                <span className="text-white text-2xl mb-2">🔒</span>
+                                <p className="text-white text-xs text-center px-2 font-medium tracking-wider">UPPGRADERA FÖR FLER PLAGG</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <ProductCard
+                              product={product}
+                              wishlisted={wishlist.has(product.id)}
+                              onToggleWishlist={() => toggleWishlist(product)}
+                            />
+                          )}
+                        </div>
+                        {index === limit - 1 && limit !== Infinity && browseFiltered.length > limit && (
+                          <div className="col-span-full text-center py-12 border border-[#E8E2D9] rounded mt-4">
+                            <p style={{ fontFamily: "Georgia, serif" }} className="text-xl mb-2">Vill du se fler plagg?</p>
+                            <p className="text-sm text-gray-500 mb-4">
+                              {tier === "free" ? "Uppgradera till Plus för 65 plagg/dag" : "Uppgradera till Premium för obegränsad feed"}
+                            </p>
+                            <a href="/uppgradera" className="text-[#B5956A] text-sm tracking-widest uppercase">SE MEDLEMSKAP →</a>
+                          </div>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </div>
               )}
             </>
           )}
