@@ -7,6 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db, storage } from "@/lib/firebase";
 import type { GarmentAnalysis } from "@/app/api/analyze-garment/route";
+import LoginModal from "@/components/LoginModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -407,6 +408,7 @@ export default function OnboardingPage() {
   const [bottomSizeMode, setBottomSizeMode] = useState<BottomSizeMode>("standard");
   const [planSaving, setPlanSaving] = useState(false);
   const [planToast, setPlanToast] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [form, setForm] = useState<FormData>({
     shoppingMode: null,
@@ -1292,7 +1294,14 @@ export default function OnboardingPage() {
 
             <button
               type="button"
-              onClick={() => setStep((s) => s + 1)}
+              onClick={() => {
+                // Step 8 → 9: require login first
+                if (step === TOTAL_STEPS - 1 && !user) {
+                  setShowLoginModal(true);
+                } else {
+                  setStep((s) => s + 1);
+                }
+              }}
               disabled={!canProceed}
               className={`px-10 py-3.5 text-sm tracking-[0.15em] uppercase transition-colors duration-150 ${
                 canProceed
@@ -1316,6 +1325,16 @@ export default function OnboardingPage() {
           </div>
         )}
       </div>
+
+      {/* Login modal — shown between step 8 and 9 when not logged in */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={() => {
+          setShowLoginModal(false);
+          setStep(TOTAL_STEPS); // advance to plan selection
+        }}
+      />
     </div>
   );
 }

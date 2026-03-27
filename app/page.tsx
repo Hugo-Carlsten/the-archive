@@ -1,6 +1,18 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function Home() {
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setLoggedIn(!!u));
+    return unsub;
+  }, []);
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-cream flex flex-col">
       {/* Hero */}
@@ -21,22 +33,27 @@ export default function Home() {
           Din personliga AI-stylist
         </p>
 
-        <div className="animate-fade-in-up-delay-3 flex flex-col sm:flex-row gap-4">
-          <Link
-            href="/onboarding"
-            className="px-12 py-4 bg-midnight text-cream text-xs tracking-[0.25em] uppercase hover:bg-charcoal transition-colors duration-500"
-          >
-            Kom igång
-          </Link>
-          <Link
-            href="/login"
-            className="px-12 py-4 border border-charcoal/20 text-charcoal text-xs tracking-[0.25em] uppercase hover:border-midnight hover:text-midnight transition-colors duration-500"
-          >
-            Logga in
-          </Link>
+        <div className="animate-fade-in-up-delay-3 h-14 flex items-center justify-center">
+          {loggedIn === null ? (
+            <span className="h-12 w-40 bg-charcoal/5 animate-pulse" />
+          ) : loggedIn ? (
+            <Link
+              href="/feed"
+              className="px-12 py-4 bg-midnight text-cream text-xs tracking-[0.25em] uppercase hover:bg-charcoal transition-colors duration-500"
+            >
+              Gå till min feed →
+            </Link>
+          ) : (
+            <Link
+              href="/onboarding"
+              className="px-12 py-4 bg-midnight text-cream text-xs tracking-[0.25em] uppercase hover:bg-charcoal transition-colors duration-500"
+            >
+              Kom igång
+            </Link>
+          )}
         </div>
 
-        <div className="animate-fade-in-up-delay-3 w-px h-20 bg-border mt-16" />
+        <div className="animate-fade-in-up-delay-3 w-px h-20 bg-border mt-10" />
       </section>
 
       {/* Feature strip */}

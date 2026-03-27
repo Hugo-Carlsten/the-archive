@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  /** Called after successful login instead of the default redirect logic */
+  onSuccess?: () => void;
+}
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" aria-hidden="true">
@@ -15,10 +22,25 @@ const GoogleIcon = () => (
   </svg>
 );
 
-export default function LoginPage() {
+export default function LoginModal({ isOpen, onClose, onSuccess }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // ESC closes modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isOpen, onClose]);
+
+  // Lock body scroll
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
 
   async function handleGoogleSignIn() {
     setLoading(true);
@@ -26,6 +48,13 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
+
+      if (onSuccess) {
+        onSuccess();
+        return;
+      }
+
+      // Default: profile exists → /feed, new user → /onboarding
       const snap = await getDoc(doc(db, "users", result.user.uid));
       if (snap.exists() && snap.data().onboardingCompletedAt) {
         router.push("/feed");
@@ -39,25 +68,31 @@ export default function LoginPage() {
     }
   }
 
+  if (!isOpen) return null;
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-cream flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm flex flex-col items-center">
-        <div className="w-px h-12 bg-taupe/40 mb-8" />
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[300] flex items-center justify-center px-6"
+      style={{ background: "rgba(28, 43, 45, 0.65)" }}
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <div className="bg-cream w-full max-w-sm flex flex-col items-center px-8 py-10 shadow-xl animate-fade-in-scale">
+        {/* Logo */}
+        <img src="/logo.png" alt="The Archive" style={{ height: "48px", width: "auto" }} className="mb-5" />
 
-        <img src="/logo.png" alt="The Archive" style={{ height: "56px", width: "auto" }} className="mb-6" />
-
-        <h2 className="font-serif text-4xl text-charcoal tracking-tight mb-2 text-center">
-          Välkommen tillbaka
+        <h2 className="font-serif text-3xl text-charcoal tracking-tight mb-1 text-center">
+          Skapa ditt konto
         </h2>
 
-        <div className="w-16 h-px bg-taupe/40 my-5" />
+        <div className="w-12 h-px bg-taupe/40 my-4" />
 
-        <p className="text-sm text-charcoal/50 tracking-wide mb-10 text-center">
-          Logga in på ditt konto för att fortsätta
+        <p className="text-xs text-charcoal/50 tracking-wide mb-8 text-center leading-relaxed max-w-[240px]">
+          Spara din stilprofil och få personliga rekommendationer
         </p>
 
         {error && (
-          <p className="text-xs text-red-600/70 mb-6 text-center">{error}</p>
+          <p className="text-xs text-red-600/70 mb-4 text-center">{error}</p>
         )}
 
         <button
@@ -73,7 +108,12 @@ export default function LoginPage() {
           Genom att fortsätta godkänner du våra användarvillkor
         </p>
 
-        <div className="w-px h-12 bg-taupe/40 mt-10" />
+        <button
+          onClick={onClose}
+          className="mt-6 text-[10px] tracking-[0.18em] text-charcoal/30 uppercase hover:text-charcoal/55 transition-colors"
+        >
+          Avbryt
+        </button>
       </div>
     </div>
   );
