@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useSubscription, type Tier } from "@/hooks/useSubscription";
