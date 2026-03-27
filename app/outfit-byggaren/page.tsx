@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, doc, getDocs, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { Product } from "@/lib/firestore-setup";
+import { useSubscription } from "@/hooks/useSubscription";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -260,8 +262,10 @@ export default function OutfitBuilderPage() {
     shoes: null,
     outerwear: null,
   });
+  const { hasAITips, maxSavedOutfits } = useSubscription();
   const [activeFilter, setActiveFilter] = useState("Alla");
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
+  const [outfitLimitModal, setOutfitLimitModal] = useState(false);
   const [loadingMatch, setLoadingMatch] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -378,6 +382,15 @@ export default function OutfitBuilderPage() {
 
   async function saveOutfit() {
     if (!user || user === "loading" || !matchResult?.score) return;
+    // Check outfit limit for free users
+    if (maxSavedOutfits !== null) {
+      const uid = (user as User).uid;
+      const snap = await getDocs(collection(db, "users", uid, "outfits"));
+      if (snap.size >= maxSavedOutfits) {
+        setOutfitLimitModal(true);
+        return;
+      }
+    }
     setSaving(true);
     try {
       const uid = (user as User).uid;
@@ -438,6 +451,34 @@ export default function OutfitBuilderPage() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
+    <>
+    {/* Outfit limit modal */}
+    {outfitLimitModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="absolute inset-0 bg-charcoal/30 backdrop-blur-[2px]" onClick={() => setOutfitLimitModal(false)} />
+        <div className="relative bg-cream border border-border w-full max-w-sm px-8 py-10 flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <h2 className="font-serif text-xl text-charcoal tracking-wide">Du har sparat {maxSavedOutfits} outfits</h2>
+            <p className="text-sm text-charcoal/55 leading-relaxed">
+              Free-planen tillåter max {maxSavedOutfits} sparade outfits. Uppgradera till Plus för obegränsade outfits.
+            </p>
+          </div>
+          <Link
+            href="/uppgradera"
+            className="w-full py-3 text-xs tracking-[0.15em] uppercase text-center"
+            style={{ background: "#1C2B2D", color: "#F5F0E8" }}
+          >
+            Uppgradera till Plus
+          </Link>
+          <button
+            onClick={() => setOutfitLimitModal(false)}
+            className="w-full py-2 text-xs tracking-[0.12em] uppercase text-charcoal/40 hover:text-charcoal transition-colors"
+          >
+            Stäng
+          </button>
+        </div>
+      </div>
+    )}
     <div className="min-h-screen bg-cream px-6 py-12">
       <div className="max-w-6xl mx-auto">
 
@@ -542,41 +583,65 @@ export default function OutfitBuilderPage() {
                       ) : null}
                     </div>
 
-                    {/* Analys */}
-                    {matchResult.critique ? (
-                      <div className="flex flex-col gap-1">
-                        <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>
-                          Analys
-                        </span>
-                        <p
-                          style={{
-                            fontSize: 13,
-                            fontStyle: "italic",
-                            lineHeight: 1.55,
-                            color:
-                              matchResult.score >= 80
-                                ? "#4a7c59"
-                                : matchResult.score < 60
-                                ? "#b94040"
-                                : "#666666",
-                          }}
+                    {/* Analys + Tips — Plus/Premium only */}
+                    {hasAITips ? (
+                      <>
+                        {matchResult.critique ? (
+                          <div className="flex flex-col gap-1">
+                            <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>
+                              Analys
+                            </span>
+                            <p
+                              style={{
+                                fontSize: 13,
+                                fontStyle: "italic",
+                                lineHeight: 1.55,
+                                color:
+                                  matchResult.score >= 80
+                                    ? "#4a7c59"
+                                    : matchResult.score < 60
+                                    ? "#b94040"
+                                    : "#666666",
+                              }}
+                            >
+                              {matchResult.critique}
+                            </p>
+                          </div>
+                        ) : null}
+                        {matchResult.tip ? (
+                          <div className="flex flex-col gap-1">
+                            <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>
+                              Tips
+                            </span>
+                            <p style={{ fontSize: 13, lineHeight: 1.55, color: "#B5956A" }}>
+                              {matchResult.tip}
+                            </p>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className="flex flex-col gap-2 border border-charcoal/8 p-3 bg-charcoal/3">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-3.5 h-3.5 text-charcoal/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 11V7a5 5 0 0110 0v4" />
+                          </svg>
+                          <span style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: "#9E9090" }}>
+                            AI-analys och stilråd
+                          </span>
+                        </div>
+                        <p className="text-xs text-charcoal/40 leading-snug">
+                          Ingår i Plus och Premium
+                        </p>
+                        <Link
+                          href="/uppgradera"
+                          className="self-start text-[10px] tracking-[0.12em] uppercase transition-colors duration-200"
+                          style={{ color: "#B5956A" }}
                         >
-                          {matchResult.critique}
-                        </p>
+                          Uppgradera →
+                        </Link>
                       </div>
-                    ) : null}
-
-                    {/* Tips */}
-                    {matchResult.tip ? (
-                      <div className="flex flex-col gap-1">
-                        <span style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#B5956A" }}>
-                          Tips
-                        </span>
-                        <p style={{ fontSize: 13, lineHeight: 1.55, color: "#B5956A" }}>
-                          {matchResult.tip}
-                        </p>
-                      </div>
-                    ) : null}
+                    )}
 
                     {/* Save button */}
                     {user && user !== "loading" ? (
@@ -652,5 +717,6 @@ export default function OutfitBuilderPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

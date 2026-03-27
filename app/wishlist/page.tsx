@@ -6,6 +6,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, deleteDoc, getDocs, collection } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { Product } from "@/lib/firestore-setup";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface WishlistProduct extends Product {
   id: string;
@@ -147,6 +148,7 @@ function WishlistCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function WishlistPage() {
+  const { maxWishlist } = useSubscription();
   const [user, setUser] = useState<User | null | "loading">("loading");
   const [items, setItems] = useState<WishlistProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,7 +201,21 @@ export default function WishlistPage() {
           <div className="w-px h-10 bg-taupe/40 mb-6" />
           <h1 className="font-serif text-4xl text-charcoal tracking-tight mb-2">Wishlist</h1>
           {!loading && items.length > 0 && (
-            <p className="text-sm text-charcoal/50 tracking-wide">{items.length} sparade plagg</p>
+            <p className="text-sm text-charcoal/50 tracking-wide">
+              {maxWishlist !== null
+                ? `${items.length}/${maxWishlist} sparade plagg`
+                : `${items.length} sparade plagg`}
+            </p>
+          )}
+          {!loading && maxWishlist !== null && items.length >= maxWishlist && (
+            <div className="mt-3 flex items-center gap-2">
+              <p className="text-xs tracking-wide" style={{ color: "#B5956A" }}>
+                Wishlist full —
+              </p>
+              <Link href="/uppgradera" className="text-xs tracking-wide underline underline-offset-2" style={{ color: "#7A6040" }}>
+                Uppgradera för obegränsad wishlist
+              </Link>
+            </div>
           )}
           <div className="w-16 h-px bg-taupe/40 mt-6" />
         </div>

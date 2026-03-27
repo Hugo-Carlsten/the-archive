@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { Product } from "@/lib/firestore-setup";
+import { useSubscription } from "@/hooks/useSubscription";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -501,6 +502,11 @@ function SwipeMode({ products, onLike, activeFilter, setActiveFilter }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function FeedPage() {
+  const { dailyLimit, swipesLeft, maxWishlist, incrementSwipeCount, isLoading: subLoading, isOnTrial, trialDaysLeft } = useSubscription();
+  const [sessionCount, setSessionCount] = useState(0); // local session counter
+  const [limitReached, setLimitReached] = useState(false);
+  const [wishlistToast, setWishlistToast] = useState(false);
+
   const [user,        setUser]        = useState<User | null | "loading">("loading");
   const [products,    setProducts]    = useState<FeedProduct[]>([]);
   const [loading,     setLoading]     = useState(false);
@@ -605,6 +611,14 @@ export default function FeedPage() {
     if (!user || user === "loading") return;
     const uid = (user as User).uid;
     const ref = doc(db, "users", uid, "wishlist", product.id);
+
+    // Wishlist limit for free users
+    if (!wishlist.has(product.id) && maxWishlist !== null && wishlist.size >= maxWishlist) {
+      setWishlistToast(true);
+      setTimeout(() => setWishlistToast(false), 3500);
+      return;
+    }
+
     setWishlist((prev) => {
       const next = new Set(prev);
       if (next.has(product.id)) { next.delete(product.id); } else { next.add(product.id); }
@@ -618,10 +632,17 @@ export default function FeedPage() {
   }
 
   async function handleSwipeLike(product: FeedProduct) {
+    await incrementSwipeCount();
+    const newCount = sessionCount + 1;
+    setSessionCount(newCount);
+    if (dailyLimit !== null && (swipesLeft !== null && swipesLeft <= 1)) {
+      setLimitReached(true);
+    }
     if (!wishlist.has(product.id)) {
       await toggleWishlist(product);
     }
   }
+
 
   // ── Browse filtered list ──────────────────────────────────────────────────
 
@@ -639,16 +660,47 @@ export default function FeedPage() {
     return <ModeSelector onSelect={handleModeSelect} />;
   }
 
+  // Compute warning state (5 or fewer left)
+  const swipesLeftNum = swipesLeft ?? Infinity;
+  const showWarningBanner = !subLoading && dailyLimit !== null && swipesLeftNum <= 10 && swipesLeftNum > 0 && !limitReached;
+  const showCountdown = !subLoading && dailyLimit !== null && swipesLeftNum <= 5 && swipesLeftNum > 0 && !limitReached;
+
   return (
     <>
       {modalState === "visible" && (
         <IntentModal onConfirm={handleModalConfirm} onSkip={handleModalSkip} />
       )}
 
+      {/* Wishlist-full toast */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+        wishlistToast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+      }`}>
+        <div className="bg-charcoal text-cream text-xs tracking-[0.12em] px-6 py-3 flex items-center gap-3 shadow-lg">
+          <span>Wishlist full ({maxWishlist}/{maxWishlist}) —</span>
+          <Link href="/uppgradera" className="text-taupe hover:underline underline-offset-2">
+            Uppgradera till Plus
+          </Link>
+        </div>
+      </div>
+
       <div className="min-h-screen bg-cream px-6 py-12">
         <div className="max-w-6xl mx-auto">
 
           {/* Header */}
+          {/* Trial welcome banner */}
+          {isOnTrial && trialDaysLeft !== null && (
+            <div className="mb-6 text-center px-5 py-3 border border-taupe/30 text-xs tracking-wide" style={{ background: "#FAF5EE" }}>
+              <span style={{ color: "#B5956A" }}>
+                {trialDaysLeft > 1
+                  ? `Du har ${trialDaysLeft} dagars gratis Plus-provperiod kvar`
+                  : "Din Plus-provperiod tar slut imorgon"} —{" "}
+              </span>
+              <Link href="/uppgradera" className="underline underline-offset-2" style={{ color: "#7A6040" }}>
+                Uppgradera för att behålla Plus
+              </Link>
+            </div>
+          )}
+
           <div className="flex flex-col items-center text-center mb-14">
             <div className="w-px h-12 bg-border mb-8" />
             <h1 className="font-serif text-5xl sm:text-6xl text-charcoal tracking-[0.04em] mb-3">
@@ -660,6 +712,74 @@ export default function FeedPage() {
             </p>
             <div className="w-12 h-px bg-border mt-8" />
           </div>
+
+          {/* Warning banner — 10 swipes left */}
+          {showWarningBanner && (
+            <div className="mb-6 flex items-center justify-between px-5 py-3 text-xs tracking-wide" style={{ background: "#F5EFE6", borderLeft: "3px solid #B5956A" }}>
+              <span style={{ color: "#7A6040" }}>
+                Du har {swipesLeftNum} plagg kvar idag — uppgradera för {dailyLimit === 75 ? "obegränsat" : "75 plagg"}/dag
+              </span>
+              <Link href="/uppgradera" className="ml-4 flex-shrink-0 text-[10px] tracking-[0.15em] uppercase hover:underline" style={{ color: "#B5956A" }}>
+                Uppgradera →
+              </Link>
+            </div>
+          )}
+
+          {/* Countdown badge — 5 or fewer left */}
+          {showCountdown && (
+            <div className="mb-4 flex justify-center">
+              <span className="text-[10px] tracking-[0.2em] uppercase px-3 py-1" style={{ background: "#B5956A", color: "#F5F0E8" }}>
+                {swipesLeftNum} plagg kvar idag
+              </span>
+            </div>
+          )}
+
+          {/* Daily limit overlay */}
+          {limitReached && (
+            <div className="relative mb-8">
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6 py-16 text-center" style={{ backdropFilter: "blur(6px)", background: "rgba(245,240,232,0.88)" }}>
+                <div className="w-px h-10 bg-taupe/40 mb-6" />
+                <h2 className="font-serif text-2xl sm:text-3xl text-charcoal tracking-tight mb-3">
+                  Du har utforskat ditt dagliga urval
+                </h2>
+                <p className="text-sm text-charcoal/55 tracking-wide mb-8 max-w-xs">
+                  Uppgradera för att fortsätta utforska idag
+                </p>
+                <div className="grid grid-cols-3 gap-3 w-full max-w-lg mb-8">
+                  {[
+                    { label: "Free", detail: "15/dag", bg: "#9E9E9E" },
+                    { label: "Plus", detail: "75/dag", bg: "#B5956A", highlight: true },
+                    { label: "Premium", detail: "Obegränsat", bg: "#1C2B2D" },
+                  ].map(({ label, detail, bg, highlight }) => (
+                    <div key={label} className={`border p-4 flex flex-col items-center gap-1 ${highlight ? "border-taupe" : "border-charcoal/10"}`}>
+                      <span className="text-[8px] tracking-[0.2em] uppercase px-1.5 py-0.5" style={{ background: bg, color: "#F5F0E8" }}>{label}</span>
+                      <span className="text-sm font-medium text-charcoal mt-1">{detail}</span>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  href="/uppgradera"
+                  className="px-10 py-3.5 text-xs tracking-[0.2em] uppercase mb-5 transition-colors"
+                  style={{ background: "#1C2B2D", color: "#F5F0E8" }}
+                >
+                  Se alla planer
+                </Link>
+                <button
+                  onClick={() => setLimitReached(false)}
+                  className="text-[10px] tracking-[0.15em] uppercase text-charcoal/35 hover:text-charcoal transition-colors"
+                >
+                  Kom tillbaka imorgon
+                </button>
+                <div className="w-px h-8 bg-taupe/30 mt-6" />
+              </div>
+              {/* Blurred placeholder behind overlay */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 opacity-40 pointer-events-none select-none" style={{ filter: "blur(4px)" }}>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="aspect-[3/4] bg-charcoal/10" />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Mode switch + no-profile banner row */}
           <div className="flex items-center justify-between mb-10">

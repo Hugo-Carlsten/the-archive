@@ -6,6 +6,7 @@ import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { doc, getDoc, getDocs, collection, query, orderBy, limit, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { useSubscription, type Tier } from "@/hooks/useSubscription";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,8 +86,70 @@ function StatCard({ value, label }: { value: string; label: string }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+function MembershipSection({ tier, isOnTrial, trialDaysLeft, nextProfileUpdate }: {
+  tier: Tier;
+  isOnTrial: boolean;
+  trialDaysLeft: number | null;
+  nextProfileUpdate: Date | null;
+}) {
+  const tierLabel = tier === "premium" ? "Premium" : tier === "plus" ? "Plus" : "Free";
+  const badgeBg   = tier === "premium" ? "#1C2B2D" : tier === "plus" ? "#B5956A" : "#9E9E9E";
+
+  const summary: Record<Tier, string> = {
+    free:    "15 plagg/dag · 3 outfits · 25 i wishlist · Outfit-byggaren utan AI",
+    plus:    "75 plagg/dag · Obegränsade outfits · AI-stilanalys · 30 garderobsplagg",
+    premium: "Obegränsad feed · 5 stilprofiler · Exportera outfits · Early access",
+  };
+
+  return (
+    <div className="border border-charcoal/10 p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5 mb-10">
+      <div className="flex flex-col gap-2 flex-1 min-w-0">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="text-[9px] tracking-[0.2em] uppercase px-2 py-0.5 leading-none"
+            style={{ background: badgeBg, color: "#F5F0E8" }}
+          >
+            {tierLabel}
+          </span>
+          <span className="text-sm text-charcoal font-medium tracking-wide">Mitt medlemskap</span>
+        </div>
+        <p className="text-xs text-charcoal/50 tracking-wide leading-relaxed">
+          {summary[tier]}
+        </p>
+        {isOnTrial && trialDaysLeft !== null && (
+          <p className="text-[10px] tracking-wide" style={{ color: "#B5956A" }}>
+            Gratis provperiod — {trialDaysLeft} dag{trialDaysLeft !== 1 ? "ar" : ""} kvar
+          </p>
+        )}
+        {nextProfileUpdate && (
+          <p className="text-[10px] text-charcoal/40 tracking-wide">
+            Kan uppdatera stilprofil igen:{" "}
+            {nextProfileUpdate.toLocaleDateString("sv-SE", { day: "numeric", month: "long" })}
+          </p>
+        )}
+      </div>
+      {tier !== "premium" ? (
+        <Link
+          href="/uppgradera"
+          className="flex-shrink-0 px-6 py-2.5 text-xs tracking-[0.15em] uppercase transition-colors duration-200 whitespace-nowrap"
+          style={{ background: "#1C2B2D", color: "#F5F0E8" }}
+        >
+          Uppgradera
+        </Link>
+      ) : (
+        <button
+          className="flex-shrink-0 px-6 py-2.5 border border-charcoal/20 text-charcoal text-xs tracking-[0.15em] uppercase hover:border-taupe hover:text-taupe transition-colors duration-200 whitespace-nowrap"
+        >
+          Hantera prenumeration
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function ProfilPage() {
   const router = useRouter();
+  const { tier, isOnTrial, trialDaysLeft, canUpdateProfile, nextProfileUpdate } = useSubscription();
   const [user, setUser] = useState<User | null | "loading">("loading");
 
   // Data
@@ -232,6 +295,14 @@ export default function ProfilPage() {
           <h1 className="font-serif text-4xl text-charcoal tracking-tight">Min Profil</h1>
           <div className="w-16 h-px bg-taupe/40 mt-6" />
         </div>
+
+        {/* ── MEDLEMSKAP ─────────────────────────────────────────────────── */}
+        <MembershipSection
+          tier={tier}
+          isOnTrial={isOnTrial}
+          trialDaysLeft={trialDaysLeft}
+          nextProfileUpdate={nextProfileUpdate}
+        />
 
         {/* ── 1. ANVÄNDARINFO ────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-2">
@@ -382,8 +453,16 @@ export default function ProfilPage() {
             )}
 
             <Link
-              href="/onboarding"
-              className="inline-flex self-start px-6 py-2.5 border border-charcoal/20 text-charcoal text-xs tracking-[0.15em] uppercase hover:border-taupe hover:text-taupe transition-colors duration-300"
+              href={canUpdateProfile ? "/onboarding" : "#"}
+              onClick={!canUpdateProfile ? (e) => e.preventDefault() : undefined}
+              className={`inline-flex self-start px-6 py-2.5 border text-xs tracking-[0.15em] uppercase transition-colors duration-300 ${
+                canUpdateProfile
+                  ? "border-charcoal/20 text-charcoal hover:border-taupe hover:text-taupe"
+                  : "border-charcoal/10 text-charcoal/25 cursor-not-allowed"
+              }`}
+              title={!canUpdateProfile && nextProfileUpdate
+                ? `Du kan uppdatera igen ${nextProfileUpdate.toLocaleDateString("sv-SE", { day: "numeric", month: "long" })}`
+                : undefined}
             >
               Uppdatera stilprofil
             </Link>
