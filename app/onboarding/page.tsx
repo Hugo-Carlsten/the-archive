@@ -114,7 +114,7 @@ const GENDER_OPTIONS = [
   { id: "båda" as Gender, emoji: "✨", label: "Båda", desc: "Alla plagg oavsett kön" },
 ];
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 const PRICE_RANGES = [
   { id: "budget", label: "Budget", desc: "under 200 kr" },
@@ -405,6 +405,8 @@ export default function OnboardingPage() {
   const analyzingRef = useRef<Set<string>>(new Set());
 
   const [bottomSizeMode, setBottomSizeMode] = useState<BottomSizeMode>("standard");
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planToast, setPlanToast] = useState<string | null>(null);
 
   const [form, setForm] = useState<FormData>({
     shoppingMode: null,
@@ -541,8 +543,8 @@ export default function OnboardingPage() {
 
   // ── Save to Firestore ──────────────────────────────────────────────────────
 
-  async function handleFinish() {
-    console.log("[handleFinish] Triggered. User:", user?.uid ?? "not logged in");
+  async function handleFinish(selectedPlan: "free" | "plus" | "premium" = "free") {
+    console.log("[handleFinish] Triggered. User:", user?.uid ?? "not logged in", "Plan:", selectedPlan);
     setSaving(true);
     setSaveError(null);
     try {
@@ -579,6 +581,10 @@ export default function OnboardingPage() {
       }
 
       // Save full style profile to users/{uid}
+      const trialExpiry =
+        selectedPlan === "plus"
+          ? Timestamp.fromDate(new Date(Date.now() + 7 * 86_400_000))
+          : null;
       const profileData = {
         name: currentUser.displayName ?? "",
         email: currentUser.email ?? "",
@@ -587,6 +593,8 @@ export default function OnboardingPage() {
         sizes: form.sizes,
         pantSizeStandard: form.pantSizeStandard || null,
         pantSizeJeans: form.jeansW && form.jeansL ? `${form.jeansW}/${form.jeansL}` : null,
+        subscription: selectedPlan,
+        subscriptionExpiry: trialExpiry,
         styleCategories: form.styleCategories,
         colorPreferences: form.colorPreferences,
         colorDislikes: form.colorDislikes,
@@ -609,6 +617,12 @@ export default function OnboardingPage() {
       }, null, 2));
       await setDoc(doc(db, "users", currentUser.uid), profileData);
 
+      const welcomeMessages: Record<string, string> = {
+        free: "Välkommen till The Archive!",
+        plus: "Välkommen! Din 7-dagars provperiod har startat 🎉",
+        premium: "Välkommen till Premium! Njut av obegränsad tillgång 🎉",
+      };
+      sessionStorage.setItem("onboardingWelcome", welcomeMessages[selectedPlan]);
       router.push("/feed");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -621,14 +635,15 @@ export default function OnboardingPage() {
   // ── Validation ─────────────────────────────────────────────────────────────
 
   const canProceed = [
-    form.shoppingMode !== null,      // 1: shopping mode
-    form.gender !== null,            // 2: gender
-    true,                            // 3: sizes (optional)
-    form.styleCategories.length > 0, // 4: style
+    form.shoppingMode !== null,       // 1: shopping mode
+    form.gender !== null,             // 2: gender
+    true,                             // 3: sizes (optional)
+    form.styleCategories.length > 0,  // 4: style
     form.colorPreferences.length > 0, // 5: colors
-    true,                            // 6: wardrobe (optional)
-    true,                            // 7: style description (optional)
-    form.priceRange !== "",          // 8: price range
+    true,                             // 6: wardrobe (optional)
+    true,                             // 7: style description (optional)
+    form.priceRange !== "",           // 8: price range
+    true,                             // 9: plan (handled by card buttons)
   ][step - 1];
 
   const anyAnalyzing = form.wardrobeFiles.some((f) => f.analyzing);
@@ -1124,27 +1139,157 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── Navigation ── */}
-        <div className="w-full max-w-lg flex items-center justify-between mt-auto pt-10">
-          {step > 1 ? (
-            <button
-              type="button"
-              onClick={() => setStep((s) => s - 1)}
-              className="text-xs tracking-[0.2em] text-charcoal/50 uppercase hover:text-taupe transition-colors"
-            >
-              ← Tillbaka
-            </button>
-          ) : (
-            <span />
-          )}
-
-          {saveError && (
-            <p className="text-xs text-red-500 text-center max-w-xs">
-              Något gick fel: {saveError}
+        {/* ── Step 9: Plan selection ── */}
+        {step === 9 && (
+          <div className="w-full max-w-4xl flex flex-col items-center text-center">
+            <div className="w-px h-8 bg-taupe/40 mb-8" />
+            <h1 className="font-serif text-4xl text-charcoal tracking-tight mb-2">
+              Välj hur du vill utforska The Archive
+            </h1>
+            <p className="text-sm text-charcoal/50 mb-10">
+              Du kan alltid byta plan senare
             </p>
-          )}
 
-          {step < TOTAL_STEPS ? (
+            {planToast && (
+              <div className="mb-8 px-6 py-3 bg-[#1C2B2D] text-cream text-xs tracking-[0.12em] shadow">
+                {planToast}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full mb-10">
+              {/* FREE */}
+              <div className="relative flex flex-col border border-charcoal/10 bg-cream hover:border-charcoal/25 transition-all duration-200 animate-[fadeIn_.4s_ease_both]">
+                <div className="p-7 flex flex-col gap-5 flex-1">
+                  <div>
+                    <h2 className="font-serif text-2xl text-charcoal mb-1">Free</h2>
+                    <p className="text-sm text-charcoal/50">Gratis för alltid</p>
+                  </div>
+                  <ul className="flex flex-col gap-2 flex-1">
+                    {["15 plagg/dag", "3 sparade outfits", "Wishlist 25 plagg", "Outfit-byggaren"].map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-xs text-charcoal/70">
+                        <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-taupe" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    disabled={planSaving || saving}
+                    onClick={async () => {
+                      setPlanSaving(true);
+                      await handleFinish("free");
+                    }}
+                    className="w-full py-3 text-xs tracking-[0.15em] uppercase border border-charcoal/20 text-charcoal hover:bg-charcoal/5 transition-colors disabled:opacity-40"
+                  >
+                    {planSaving || saving ? "Sparar..." : "Fortsätt gratis"}
+                  </button>
+                </div>
+              </div>
+
+              {/* PLUS */}
+              <div className="relative flex flex-col border border-taupe bg-cream shadow-md scale-[1.02] animate-[fadeIn_.5s_ease_both]">
+                <div className="py-1.5 text-center text-[9px] tracking-[0.25em] uppercase" style={{ background: "#B5956A", color: "#F5F0E8" }}>
+                  Populärast
+                </div>
+                <div className="py-1.5 text-center text-[9px] tracking-[0.15em] uppercase flex items-center justify-center gap-1.5" style={{ background: "#f0f7f0", color: "#4a7c59" }}>
+                  <span>🎉</span> Första 7 dagarna gratis
+                </div>
+                <div className="p-7 flex flex-col gap-5 flex-1">
+                  <div>
+                    <h2 className="font-serif text-2xl text-charcoal mb-1">Plus</h2>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-serif text-4xl text-charcoal">39</span>
+                      <span className="text-sm text-charcoal/40">kr/mån</span>
+                    </div>
+                    <p className="text-[10px] text-charcoal/40 mt-0.5">eller 299 kr/år</p>
+                  </div>
+                  <ul className="flex flex-col gap-2 flex-1">
+                    {["75 plagg/dag", "Obegränsade outfits", "Obegränsad wishlist", "AI-stilråd", "30 garderobsplagg"].map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-xs text-charcoal/70">
+                        <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-taupe" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    disabled={planSaving || saving}
+                    onClick={async () => {
+                      setPlanToast("7 dagar gratis aktiverat! 🎉");
+                      setPlanSaving(true);
+                      await handleFinish("plus");
+                    }}
+                    className="w-full py-3 text-xs tracking-[0.15em] uppercase transition-opacity hover:opacity-85 disabled:opacity-40"
+                    style={{ background: "#1C2B2D", color: "#F5F0E8" }}
+                  >
+                    {planSaving || saving ? "Sparar..." : "Prova Plus gratis i 7 dagar"}
+                  </button>
+                </div>
+              </div>
+
+              {/* PREMIUM */}
+              <div className="relative flex flex-col border border-charcoal/10 bg-cream hover:border-charcoal/25 transition-all duration-200 animate-[fadeIn_.6s_ease_both]">
+                <div className="p-7 flex flex-col gap-5 flex-1">
+                  <div>
+                    <h2 className="font-serif text-2xl text-charcoal mb-1">Premium</h2>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-serif text-4xl text-charcoal">99</span>
+                      <span className="text-sm text-charcoal/40">kr/mån</span>
+                    </div>
+                  </div>
+                  <ul className="flex flex-col gap-2 flex-1">
+                    {["Obegränsad feed", "5 stilprofiler", "Dela med familj", "Exportera outfits", "Early access"].map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-xs text-charcoal/70">
+                        <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-taupe" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    disabled={planSaving || saving}
+                    onClick={async () => {
+                      setPlanSaving(true);
+                      await handleFinish("premium");
+                    }}
+                    className="w-full py-3 text-xs tracking-[0.15em] uppercase transition-opacity hover:opacity-85 disabled:opacity-40"
+                    style={{ background: "#1C2B2D", color: "#F5F0E8" }}
+                  >
+                    {planSaving || saving ? "Sparar..." : "Välj Premium"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Navigation ── */}
+        {step < TOTAL_STEPS && (
+          <div className="w-full max-w-lg flex items-center justify-between mt-auto pt-10">
+            {step > 1 ? (
+              <button
+                type="button"
+                onClick={() => setStep((s) => s - 1)}
+                className="text-xs tracking-[0.2em] text-charcoal/50 uppercase hover:text-taupe transition-colors"
+              >
+                ← Tillbaka
+              </button>
+            ) : (
+              <span />
+            )}
+
+            {saveError && (
+              <p className="text-xs text-red-500 text-center max-w-xs">
+                Något gick fel: {saveError}
+              </p>
+            )}
+
             <button
               type="button"
               onClick={() => setStep((s) => s + 1)}
@@ -1157,17 +1302,19 @@ export default function OnboardingPage() {
             >
               Nästa
             </button>
-          ) : (
+          </div>
+        )}
+        {step === TOTAL_STEPS && (
+          <div className="w-full max-w-lg flex items-center mt-auto pt-6">
             <button
               type="button"
-              onClick={handleFinish}
-              disabled={saving || anyAnalyzing}
-              className="px-10 py-3.5 bg-charcoal text-cream text-sm tracking-[0.15em] uppercase hover:bg-taupe transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => setStep((s) => s - 1)}
+              className="text-xs tracking-[0.2em] text-charcoal/50 uppercase hover:text-taupe transition-colors"
             >
-              {saving ? "Sparar..." : anyAnalyzing ? "Väntar på analys..." : "Klar — visa min feed"}
+              ← Tillbaka
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

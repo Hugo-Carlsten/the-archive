@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useState, useRef, useEffect } from "react";
+import { useSubscription, type Tier } from "@/hooks/useSubscription";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 const NAV_LINKS = [
   { href: "/feed",            label: "Feed" },
@@ -17,24 +20,86 @@ const MOBILE_LINKS = [
   { href: "/profil",          label: "Profil" },
 ];
 
-function TierBadge({ tier }: { tier: "free" | "plus" | "premium" }) {
-  if (tier === "premium") {
-    return (
-      <span className="text-[8px] tracking-[0.18em] uppercase px-1.5 py-0.5 leading-none"
-        style={{ background: "#1C2B2D", color: "#F5F0E8" }}>
-        Premium
-      </span>
+const TIER_OPTIONS: { id: Tier; label: string; color: string }[] = [
+  { id: "free",    label: "Free",    color: "#9E9E9E" },
+  { id: "plus",    label: "Plus",    color: "#B5956A" },
+  { id: "premium", label: "Premium", color: "#1C2B2D" },
+];
+
+function PlanDropdown({ tier }: { tier: Tier }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, []);
+
+  async function switchPlan(newTier: Tier) {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setOpen(false);
+    const expiry =
+      newTier === "plus"
+        ? Timestamp.fromDate(new Date(Date.now() + 7 * 86_400_000))
+        : null;
+    await setDoc(
+      doc(db, "users", uid),
+      { subscription: newTier, subscriptionExpiry: expiry },
+      { merge: true }
     );
+    window.location.reload();
   }
-  if (tier === "plus") {
-    return (
-      <span className="text-[8px] tracking-[0.18em] uppercase px-1.5 py-0.5 leading-none"
-        style={{ background: "#B5956A", color: "#F5F0E8" }}>
-        Plus
-      </span>
-    );
-  }
-  return null; // free — show upgrade link instead
+
+  const current = TIER_OPTIONS.find((o) => o.id === tier)!;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="text-[8px] tracking-[0.18em] uppercase px-1.5 py-0.5 leading-none cursor-pointer select-none"
+        style={{ background: current.color, color: "#F5F0E8" }}
+      >
+        {tier}
+      </button>
+
+      {open && (
+        <div className="absolute top-full right-0 mt-2 bg-cream border border-charcoal/10 shadow-sm z-[100] min-w-[140px]">
+          {TIER_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => switchPlan(opt.id)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-xs tracking-wide text-left hover:bg-charcoal/5 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ background: opt.color }}
+                />
+                {opt.label}
+              </span>
+              {opt.id === tier && (
+                <svg
+                  className="w-3 h-3 text-charcoal/50 flex-shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function NavBar() {
@@ -55,18 +120,7 @@ export default function NavBar() {
               {label}
             </Link>
           ))}
-          {!isLoading && tier === "free" && (
-            <Link
-              href="/uppgradera"
-              className="flex items-center gap-1.5 text-[10px] tracking-[0.2em] uppercase text-taupe hover:text-charcoal transition-colors duration-200"
-            >
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
-              </svg>
-              Uppgradera
-            </Link>
-          )}
-          {!isLoading && tier !== "free" && <TierBadge tier={tier} />}
+          {!isLoading && <PlanDropdown tier={tier} />}
         </nav>
 
         {/* Mobile nav */}
@@ -76,6 +130,7 @@ export default function NavBar() {
               {label}
             </Link>
           ))}
+          {!isLoading && <PlanDropdown tier={tier} />}
         </nav>
       </div>
     </header>

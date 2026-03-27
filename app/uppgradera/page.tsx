@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useSubscription, type Tier } from "@/hooks/useSubscription";
 
 // ─── Pricing data ─────────────────────────────────────────────────────────────
 
@@ -57,64 +57,6 @@ const FAQ = [
   },
 ];
 
-// ─── Waitlist form ─────────────────────────────────────────────────────────────
-
-function WaitlistForm({ planLabel }: { planLabel: string }) {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [sending, setSending] = useState(false);
-
-  async function submit() {
-    const trimmed = email.trim();
-    if (!trimmed || !trimmed.includes("@")) return;
-    setSending(true);
-    try {
-      await setDoc(doc(db, "waitlist", trimmed), {
-        email: trimmed,
-        plan: planLabel,
-        uid: auth.currentUser?.uid ?? null,
-        createdAt: Timestamp.now(),
-      });
-      setSent(true);
-    } catch {
-      setSent(true); // show success regardless
-    } finally {
-      setSending(false);
-    }
-  }
-
-  if (sent) {
-    return (
-      <p className="text-xs text-center" style={{ color: "#4a7c59", letterSpacing: "0.05em" }}>
-        Tack! Vi meddelar dig när betalning är tillgänglig.
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-[10px] tracking-[0.15em] uppercase text-center" style={{ color: "#B5956A" }}>
-        Betalning kommer snart — anmäl intresse
-      </p>
-      <div className="flex gap-2">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="din@email.se"
-          className="flex-1 border border-charcoal/15 bg-cream px-3 py-2 text-xs text-charcoal placeholder-charcoal/30 outline-none focus:border-charcoal/30 transition-colors"
-        />
-        <button
-          onClick={submit}
-          disabled={sending}
-          className="px-4 py-2 bg-charcoal text-cream text-xs tracking-[0.12em] uppercase hover:bg-taupe transition-colors disabled:opacity-40"
-        >
-          {sending ? "..." : "OK"}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ─── Plan card ────────────────────────────────────────────────────────────────
 
@@ -129,7 +71,7 @@ function PlanCard({
   isPopular,
   billing,
   ctaLabel,
-  ctaDisabled,
+  onSelect,
 }: {
   title: string;
   badge?: string;
@@ -141,7 +83,7 @@ function PlanCard({
   isPopular?: boolean;
   billing: "monthly" | "yearly";
   ctaLabel: string;
-  ctaDisabled: boolean;
+  onSelect: () => void;
 }) {
   const price = monthlyPrice
     ? billing === "yearly" && yearlyPrice
@@ -157,6 +99,7 @@ function PlanCard({
   return (
     <div
       className={`relative flex flex-col border transition-shadow duration-300 ${
+        isCurrent ? "border-[#1C2B2D] shadow-md" :
         isPopular ? "border-taupe shadow-md scale-[1.02]" : "border-charcoal/10 hover:border-charcoal/25"
       } bg-cream`}
     >
@@ -220,20 +163,18 @@ function PlanCard({
         {isCurrent ? (
           <button
             disabled
-            className="w-full py-3 text-xs tracking-[0.15em] uppercase border border-charcoal/15 text-charcoal/30 cursor-default"
+            className="w-full py-3 text-xs tracking-[0.15em] uppercase border border-[#1C2B2D]/25 text-[#1C2B2D]/50 cursor-default"
           >
-            Din nuvarande plan
+            Din nuvarande plan ✓
           </button>
-        ) : ctaDisabled ? (
-          <WaitlistForm planLabel={title} />
         ) : (
-          <Link
-            href="#"
-            className="w-full py-3 text-xs tracking-[0.15em] uppercase text-center transition-colors duration-200 block"
+          <button
+            onClick={onSelect}
+            className="w-full py-3 text-xs tracking-[0.15em] uppercase text-center transition-opacity duration-200 hover:opacity-85"
             style={{ background: "#1C2B2D", color: "#F5F0E8" }}
           >
             {ctaLabel}
-          </Link>
+          </button>
         )}
       </div>
     </div>
@@ -245,9 +186,42 @@ function PlanCard({
 export default function UpgraderaPage() {
   const { tier, isLoading, isOnTrial, trialDaysLeft } = useSubscription();
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const [toast, setToast] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+
+  async function changePlan(newTier: Tier) {
+    const uid = auth.currentUser?.uid;
+    if (!uid || switching) return;
+    setSwitching(true);
+    try {
+      const expiry =
+        newTier === "plus"
+          ? Timestamp.fromDate(new Date(Date.now() + 7 * 86_400_000))
+          : null;
+      await setDoc(
+        doc(db, "users", uid),
+        { subscription: newTier, subscriptionExpiry: expiry },
+        { merge: true }
+      );
+      const label = newTier === "free" ? "Free" : newTier === "plus" ? "Plus" : "Premium";
+      setToast(`Din plan har uppdaterats till ${label}!`);
+      setTimeout(() => {
+        setToast(null);
+        window.location.reload();
+      }, 2000);
+    } catch {
+      setSwitching(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-cream px-6 py-12">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 bg-[#1C2B2D] text-cream text-xs tracking-[0.12em] shadow-lg transition-all duration-300">
+          {toast}
+        </div>
+      )}
       <div className="max-w-5xl mx-auto">
 
         {/* Header */}
@@ -302,8 +276,8 @@ export default function UpgraderaPage() {
               features={FREE_FEATURES}
               isCurrent={tier === "free"}
               billing={billing}
-              ctaLabel="Din plan"
-              ctaDisabled={false}
+              ctaLabel="Välj Free"
+              onSelect={() => changePlan("free")}
             />
             <PlanCard
               title="Plus"
@@ -316,7 +290,7 @@ export default function UpgraderaPage() {
               isPopular
               billing={billing}
               ctaLabel="Välj Plus"
-              ctaDisabled={true}
+              onSelect={() => changePlan("plus")}
             />
             <PlanCard
               title="Premium"
@@ -328,7 +302,7 @@ export default function UpgraderaPage() {
               isCurrent={tier === "premium"}
               billing={billing}
               ctaLabel="Välj Premium"
-              ctaDisabled={true}
+              onSelect={() => changePlan("premium")}
             />
           </div>
         )}

@@ -506,6 +506,7 @@ export default function FeedPage() {
   const [sessionCount, setSessionCount] = useState(0); // local session counter
   const [limitReached, setLimitReached] = useState(false);
   const [wishlistToast, setWishlistToast] = useState(false);
+  const [welcomeToast, setWelcomeToast] = useState<string | null>(null);
 
   const [user,        setUser]        = useState<User | null | "loading">("loading");
   const [products,    setProducts]    = useState<FeedProduct[]>([]);
@@ -524,6 +525,17 @@ export default function FeedPage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return unsub;
+  }, []);
+
+  // ── Onboarding welcome toast ──────────────────────────────────────────────
+
+  useEffect(() => {
+    const msg = sessionStorage.getItem("onboardingWelcome");
+    if (msg) {
+      sessionStorage.removeItem("onboardingWelcome");
+      setWelcomeToast(msg);
+      setTimeout(() => setWelcomeToast(null), 4000);
+    }
   }, []);
 
   // ── Resolve feed mode (once auth is ready) ────────────────────────────────
@@ -680,6 +692,15 @@ export default function FeedPage() {
           <Link href="/uppgradera" className="text-taupe hover:underline underline-offset-2">
             Uppgradera till Plus
           </Link>
+        </div>
+      </div>
+
+      {/* Welcome toast */}
+      <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 ${
+        welcomeToast ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+      }`}>
+        <div className="bg-[#1C2B2D] text-cream text-xs tracking-[0.12em] px-6 py-3 shadow-lg whitespace-nowrap">
+          {welcomeToast}
         </div>
       </div>
 
